@@ -11,6 +11,7 @@ class ScoreConfig:
     tpot_ceiling_ms: float = 45.0
     gamma: float = 2.0
     ttft_weight: float = 0.5
+    baseline_accuracy: float = 0.40
 
 
 @dataclass(frozen=True)
@@ -52,3 +53,25 @@ def summarize_scores(measurements: list[RequestMeasurement], config: ScoreConfig
         "effective_request_score": effective_request_score,
         "score_100x_ers": 100.0 * effective_request_score,
     }
+
+
+def accuracy_multiplier(accuracy: float, *, baseline_accuracy: float = 0.40) -> float:
+    epsilon = 1e-12
+    delta = baseline_accuracy - accuracy
+    if delta <= 0.10 + epsilon:
+        return 1.0
+    if delta >= 0.16 - epsilon:
+        return 0.0
+    return 1.0 - (delta - 0.10) / 0.06
+
+
+def final_score(
+    *,
+    effective_request_score: float,
+    accuracy: float,
+    baseline_accuracy: float = 0.40,
+) -> float:
+    return 100.0 * effective_request_score * accuracy_multiplier(
+        accuracy,
+        baseline_accuracy=baseline_accuracy,
+    )

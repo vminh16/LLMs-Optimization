@@ -3,6 +3,8 @@ import unittest
 from inference_opt.benchmark.scoring import (
     ScoreConfig,
     RequestMeasurement,
+    accuracy_multiplier,
+    final_score,
     request_score,
     summarize_scores,
 )
@@ -59,6 +61,15 @@ class BenchmarkScoringTest(unittest.TestCase):
         self.assertEqual(summary["success_count"], 1)
         self.assertEqual(summary["error_count"], 1)
         self.assertEqual(summary["effective_request_score"], 0.5)
+
+    def test_accuracy_multiplier_matches_project_gate(self):
+        self.assertEqual(accuracy_multiplier(accuracy=0.30), 1.0)
+        self.assertAlmostEqual(accuracy_multiplier(accuracy=0.27), 0.5)
+        self.assertEqual(accuracy_multiplier(accuracy=0.24), 0.0)
+
+    def test_final_score_combines_ers_and_accuracy_gate(self):
+        self.assertEqual(final_score(effective_request_score=0.5, accuracy=0.30), 50.0)
+        self.assertEqual(final_score(effective_request_score=0.5, accuracy=0.24), 0.0)
 
 
 if __name__ == "__main__":
