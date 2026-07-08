@@ -1,0 +1,7 @@
+{
+  "downloaded_at": "2026-07-08T08:43:44.716262+00:00",
+  "model_id": "Qwen/Qwen3.5-2B",
+  "revision_requested": null,
+  "revision_resolved": "15852e8c16360a2fea060d615a32b45270f8a8fc",
+  "snapshot_path": "C:/Users/USER/Desktop/backendLLMs-inference-otimization/models/Qwen3.5-2B"
+}
