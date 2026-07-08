@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=70", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "backend-llms-inference-optimization"
+version = "0.1.0"
+description = "Backend tooling for LLM inference optimization experiments."
+requires-python = ">=3.11"
+dependencies = [
+    "httpx>=0.27,<1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8,<9",
+]
+eval = [
+    "datasets>=2.20,<4",
+    "huggingface-hub>=0.23,<1",
+    "tqdm>=4.66,<5",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

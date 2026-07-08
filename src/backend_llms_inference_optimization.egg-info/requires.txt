@@ -1,0 +1,9 @@
+httpx<1,>=0.27
+
+[dev]
+pytest<9,>=8
+
+[eval]
+datasets<4,>=2.20
+huggingface-hub<1,>=0.23
+tqdm<5,>=4.66
