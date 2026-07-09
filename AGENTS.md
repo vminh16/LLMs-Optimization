@@ -193,4 +193,4 @@ Use the public **GPQA Diamond** dataset (`Idavidrein/gpqa` on Hugging Face, gate
 ### B9. Team Decisions Log — the one section you should update
 *(Keep entries short: date, decision, measured result, who validated it. This is the only living part of this file — everything else in Part B is the fixed competition spec.)*
 
-- _(empty — first entry goes here once the baseline is submitted and scored)_
+- 2026-07-09 — Organizer baseline `docker-compose.yml` submitted and accepted; leaderboard score approximately 14, validating the baseline serving contract. Validated by user.

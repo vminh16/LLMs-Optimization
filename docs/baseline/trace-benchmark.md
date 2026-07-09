@@ -44,3 +44,5 @@ python scripts/run_trace_benchmark.py --no-respect-timestamps --run-id smoke
 ```
 
 This local score is a proxy. It is not expected to match the leaderboard unless the hardware is comparable to the organizer `1g.18gb` H200 MIG environment.
+
+For GPQA-derived local quality checks, see `docs/baseline/gpqa-benchmark.md`.

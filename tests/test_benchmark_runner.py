@@ -47,6 +47,7 @@ class BenchmarkRunnerTest(unittest.TestCase):
         self.assertEqual(result.summary["error_count"], 1)
         self.assertEqual(result.summary["effective_request_score"], 0.5)
         self.assertEqual(result.requests[0]["score"], 1.0)
+        self.assertEqual(result.requests[0]["text"], "ok")
         self.assertEqual(result.requests[1]["score"], 0.0)
         self.assertIn("boom", result.requests[1]["error"])
 

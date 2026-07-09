@@ -32,8 +32,15 @@ def load_env_file(path: Path) -> dict[str, str]:
         if not line or line.startswith("#"):
             continue
         key, value = line.split("=", 1)
-        values[key.strip()] = value.strip()
+        values[key.strip()] = _strip_optional_quotes(value)
     return values
+
+
+def _strip_optional_quotes(value: str) -> str:
+    value = value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+        return value[1:-1]
+    return value
 
 
 def _blank_to_none(value: str | None) -> str | None:

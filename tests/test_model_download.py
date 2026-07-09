@@ -34,6 +34,16 @@ class ModelDownloadTest(unittest.TestCase):
         self.assertEqual(values["MODEL_ID"], "Qwen/Qwen3.5-2B")
         self.assertEqual(values["MODEL_REVISION"], "")
 
+    def test_load_env_file_strips_optional_quotes(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            env_file = Path(tmpdir) / ".env"
+            env_file.write_text('HF_TOKEN="hf_local"\nMODEL_ID=\'Qwen/Qwen3.5-2B\'\n', encoding="utf-8")
+
+            values = load_env_file(env_file)
+
+        self.assertEqual(values["HF_TOKEN"], "hf_local")
+        self.assertEqual(values["MODEL_ID"], "Qwen/Qwen3.5-2B")
+
     def test_manifest_records_requested_default_revision_without_token(self):
         config = DownloadConfig(
             model_id="Qwen/Qwen3.5-2B",

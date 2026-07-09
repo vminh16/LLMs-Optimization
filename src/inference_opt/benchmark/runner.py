@@ -125,6 +125,8 @@ async def _run_one(
     }
     if "total_ms" in raw:
         row["total_ms"] = raw["total_ms"]
+    if "text" in raw:
+        row["text"] = raw["text"]
     return row, measurement
 
 

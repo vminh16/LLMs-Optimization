@@ -10,3 +10,4 @@ venv/
 models/
 data/gpqa/
 data/traces/gpqa-*.jsonl
+data/traces/gpqa-*.answers.json
