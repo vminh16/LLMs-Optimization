@@ -55,10 +55,18 @@ Score answer accuracy from the benchmark output:
 python scripts/evaluate_gpqa_results.py --requests results/gpqa-baseline/baseline/requests.jsonl
 ```
 
+The evaluator defaults to the measured local reference accuracy, `43 / 120`.
+Use `--baseline-accuracy` only when intentionally evaluating against another
+local reference. This does not change the official competition reference of
+`0.40`.
+
 This writes:
 
 - `results/gpqa-baseline/baseline/summary.json` for ERS/latency proxy
 - `results/gpqa-baseline/baseline/requests.jsonl` for per-request latency and model text
-- `results/gpqa-baseline/baseline/gpqa_accuracy.json` for local accuracy
+- `results/gpqa-baseline/baseline/gpqa_accuracy.json` for local accuracy,
+  accuracy delta, and local multiplier
 
 Use the same trace and seed for optimized runs, then compare both `summary.json` and `gpqa_accuracy.json`.
+The locked baseline and optimization acceptance rules are in
+`docs/baseline/results.md`.

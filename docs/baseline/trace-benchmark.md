@@ -34,7 +34,9 @@ Then run:
 
 ```powershell
 python scripts/check_server_health.py
-python scripts/run_trace_benchmark.py
+python scripts/run_trace_benchmark.py --trace data\trace-round1.jsonl --output-root results\trace-baseline --run-id baseline-01
+python scripts/run_trace_benchmark.py --trace data\trace-round1.jsonl --output-root results\trace-baseline --run-id baseline-02
+python scripts/run_trace_benchmark.py --trace data\trace-round1.jsonl --output-root results\trace-baseline --run-id baseline-03
 ```
 
 For a quick functional check that does not wait for trace timestamps:
@@ -44,5 +46,7 @@ python scripts/run_trace_benchmark.py --no-respect-timestamps --run-id smoke
 ```
 
 This local score is a proxy. It is not expected to match the leaderboard unless the hardware is comparable to the organizer `1g.18gb` H200 MIG environment.
+On L4, use the three-run median raw TTFT, TPOT, makespan, and output rate
+recorded in `docs/baseline/results.md`; official ERS is saturated near zero.
 
 For GPQA-derived local quality checks, see `docs/baseline/gpqa-benchmark.md`.

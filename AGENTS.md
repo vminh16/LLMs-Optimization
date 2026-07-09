@@ -194,3 +194,4 @@ Use the public **GPQA Diamond** dataset (`Idavidrein/gpqa` on Hugging Face, gate
 *(Keep entries short: date, decision, measured result, who validated it. This is the only living part of this file — everything else in Part B is the fixed competition spec.)*
 
 - 2026-07-09 — Organizer baseline `docker-compose.yml` submitted and accepted; leaderboard score approximately 14, validating the baseline serving contract. Validated by user.
+- 2026-07-09 — L4 relative baseline locked from three 120-request runs; local GPQA reference set to 43/120 while official accuracy and latency constants remain unchanged. Validated by user.

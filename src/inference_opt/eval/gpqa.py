@@ -7,6 +7,7 @@ import re
 
 
 DATASET_ID = "Idavidrein/gpqa"
+LOCAL_BASELINE_ACCURACY = 43 / 120
 VARIANT_CONFIGS = {
     "diamond": "gpqa_diamond",
     "gpqa_diamond": "gpqa_diamond",
