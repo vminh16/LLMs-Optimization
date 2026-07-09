@@ -1,0 +1,15 @@
+# Compose override for local FP8 KV-cache experiment.
+# Use with: docker-compose -f docker-compose.local.yml -f configs/experiments/freewin-kv-fp8.compose.yml up model
+services:
+  model:
+    command:
+      - --model=/model #Don't change this to vllm-server
+      - --served-model-name=Qwen3.5-2B #Don't change this to vllm-server
+      - --host=0.0.0.0 #Don't change this to vllm-server
+      - --port=8000 #Don't change this to vllm-server
+      - --max-model-len=262144
+      - --gpu-memory-utilization=0.95
+      - --tensor-parallel-size=1
+      - --enable-prefix-caching
+      - --kv-cache-dtype=fp8
+      - --calculate-kv-scales

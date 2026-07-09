@@ -8,6 +8,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class LocalComposeTest(unittest.TestCase):
+    def read_experiment_compose(self, name):
+        return (ROOT / "configs" / "experiments" / name).read_text(encoding="utf-8")
+
     def test_local_compose_mounts_default_model_without_changing_baseline_entrypoint(self):
         compose = (ROOT / "docker-compose.local.yml").read_text(encoding="utf-8")
 
@@ -25,6 +28,31 @@ class LocalComposeTest(unittest.TestCase):
 
         self.assertNotIn("./models/Qwen3.5-2B", compose)
         self.assertNotIn("volumes:", compose)
+
+    def test_prefix_xxhash_experiment_overrides_only_model_command(self):
+        compose = self.read_experiment_compose("freewin-prefix-xxhash.compose.yml")
+
+        self.assertIn("- --model=/model #Don't change this to vllm-server", compose)
+        self.assertIn("- --served-model-name=Qwen3.5-2B #Don't change this to vllm-server", compose)
+        self.assertIn("- --enable-prefix-caching", compose)
+        self.assertIn("- --prefix-caching-hash-algo=xxhash", compose)
+        self.assertNotIn("entrypoint:", compose)
+        self.assertNotIn("image:", compose)
+        self.assertNotIn("volumes:", compose)
+        self.assertNotIn("--kv-cache-dtype", compose)
+
+    def test_kv_fp8_experiment_overrides_only_model_command(self):
+        compose = self.read_experiment_compose("freewin-kv-fp8.compose.yml")
+
+        self.assertIn("- --model=/model #Don't change this to vllm-server", compose)
+        self.assertIn("- --served-model-name=Qwen3.5-2B #Don't change this to vllm-server", compose)
+        self.assertIn("- --enable-prefix-caching", compose)
+        self.assertIn("- --kv-cache-dtype=fp8", compose)
+        self.assertIn("- --calculate-kv-scales", compose)
+        self.assertNotIn("entrypoint:", compose)
+        self.assertNotIn("image:", compose)
+        self.assertNotIn("volumes:", compose)
+        self.assertNotIn("--prefix-caching-hash-algo", compose)
 
     def test_build_models_url_normalizes_openai_base_url(self):
         self.assertEqual(

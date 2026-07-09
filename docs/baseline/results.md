@@ -100,9 +100,11 @@ active decode concurrency, and queue delay.
 1. Keep prefix caching enabled and test `--prefix-caching-hash-algo=xxhash`.
    The workload has unusually large exact prefixes and the grading host has
    only three CPU cores.
-2. Record startup-resolved scheduler values before making them explicit.
-3. Confirm whether async scheduling and chunked prefill are already active.
-4. Measure exact token lengths before reducing `--max-model-len`; never choose
+2. Test FP8 KV cache as a low-effort memory/bandwidth candidate, but require
+   GPQA because KV-cache quantization changes numerical behavior.
+3. Record startup-resolved scheduler values before making them explicit.
+4. Confirm whether async scheduling and chunked prefill are already active.
+5. Measure exact token lengths before reducing `--max-model-len`; never choose
    a limit from character counts.
 
 ### 2. Simple Configuration Optimization
@@ -132,9 +134,8 @@ run the full Cartesian product initially.
    FP8, while FP8 generally carries less quality risk. vLLM notes that online
    dynamic FP8 has limited latency gains, so it is a smoke candidate rather
    than the final quantization path.
-2. Test FP8 KV cache only after scheduler tuning. Most Qwen3.5-2B layers use
-   fixed recurrent state rather than a growing full-attention KV cache, so its
-   expected return is lower than for a standard Transformer.
+2. If FP8 KV cache passes the free-win gate, combine it with the best scheduler
+   config later; if it fails, revisit it only with calibrated scales.
 3. Require GPQA evaluation for every precision candidate.
 
 ### 4. Complex Optimization
