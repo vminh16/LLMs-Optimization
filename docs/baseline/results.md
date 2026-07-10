@@ -23,9 +23,10 @@ All three runs completed 120 requests with zero errors.
 | baseline-03 | 19211.67 ms | 49682.77 ms | 271.65 ms | 340.18 ms | 95554.40 ms | 251.17 |
 | **Three-run median** | **21329.47 ms** | **51667.18 ms** | **270.32 ms** | **339.41 ms** | **97859.31 ms** | **244.77** |
 
-The local runner counts non-empty streaming chunks. With the current vLLM
-server this is a useful relative output-rate proxy, but it must not be treated
-as a framework-independent tokenizer count.
+These results were produced before H0 measurement standardization, when the
+local runner counted non-empty streaming chunks. New benchmark runs should use
+`usage.completion_tokens` and TPOT from `(total_latency_ms - TTFT_ms) /
+(completion_tokens - 1)`.
 
 Official ERS is saturated near zero on L4:
 

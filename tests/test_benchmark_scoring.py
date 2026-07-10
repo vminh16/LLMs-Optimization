@@ -62,6 +62,26 @@ class BenchmarkScoringTest(unittest.TestCase):
         self.assertEqual(summary["error_count"], 1)
         self.assertEqual(summary["effective_request_score"], 0.5)
 
+    def test_summarize_scores_reports_btc_like_latency_fields(self):
+        config = ScoreConfig()
+        measurements = [
+            RequestMeasurement(ttft_ms=100.0, tpot_ms=20.0, output_tokens=2),
+            RequestMeasurement(ttft_ms=200.0, tpot_ms=30.0, output_tokens=2),
+            RequestMeasurement(ttft_ms=2000.0, tpot_ms=50.0, output_tokens=2),
+            RequestMeasurement(error="timeout", output_tokens=0),
+        ]
+
+        summary = summarize_scores(measurements, config)
+
+        self.assertEqual(summary["total_count"], 4)
+        self.assertEqual(summary["failed_count"], 1)
+        self.assertEqual(summary["passed_slo"], 2)
+        self.assertEqual(summary["ttft_p50_ms"], 200.0)
+        self.assertEqual(summary["ttft_p95_ms"], 2000.0)
+        self.assertEqual(summary["tbt_median_ms"], 30.0)
+        self.assertAlmostEqual(summary["ers"], 100.0 * summary["effective_request_score"])
+        self.assertAlmostEqual(summary["final_score"], summary["ers"])
+
     def test_accuracy_multiplier_matches_project_gate(self):
         self.assertEqual(accuracy_multiplier(accuracy=0.30), 1.0)
         self.assertAlmostEqual(accuracy_multiplier(accuracy=0.27), 0.5)

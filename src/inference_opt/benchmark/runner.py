@@ -39,7 +39,13 @@ def _content_from_chunk(payload: dict[str, Any]) -> str:
         return ""
     choice = choices[0]
     delta = choice.get("delta") or {}
-    return str(delta.get("content") or choice.get("text") or "")
+    return str(delta.get("content") or delta.get("reasoning_content") or choice.get("text") or "")
+
+
+def _completion_tokens_from_chunk(payload: dict[str, Any]) -> int | None:
+    usage = payload.get("usage") or {}
+    completion_tokens = usage.get("completion_tokens")
+    return int(completion_tokens) if completion_tokens is not None else None
 
 
 async def send_openai_streaming_request(
@@ -47,16 +53,24 @@ async def send_openai_streaming_request(
     *,
     base_url: str,
     timeout_s: float,
+    client: httpx.AsyncClient | None = None,
 ) -> dict[str, Any]:
     request_body = dict(body)
     request_body["stream"] = True
+    stream_options = dict(request_body.get("stream_options") or {})
+    stream_options["include_usage"] = True
+    request_body["stream_options"] = stream_options
 
     chunks: list[str] = []
     token_times: list[float] = []
+    usage_completion_tokens: int | None = None
     started = perf_counter()
-    timeout = httpx.Timeout(timeout_s)
 
-    async with httpx.AsyncClient(timeout=timeout) as client:
+    owns_client = client is None
+    if client is None:
+        client = httpx.AsyncClient(timeout=httpx.Timeout(timeout_s))
+
+    try:
         async with client.stream("POST", _chat_completions_url(base_url), json=request_body) as response:
             response.raise_for_status()
             async for line in response.aiter_lines():
@@ -65,17 +79,23 @@ async def send_openai_streaming_request(
                 data = line.removeprefix("data: ").strip()
                 if data == "[DONE]":
                     break
-                content = _content_from_chunk(json.loads(data))
+                payload = json.loads(data)
+                usage_completion_tokens = _completion_tokens_from_chunk(payload) or usage_completion_tokens
+                content = _content_from_chunk(payload)
                 if content:
                     token_times.append(perf_counter())
                     chunks.append(content)
+    finally:
+        if owns_client:
+            await client.aclose()
 
     finished = perf_counter()
-    output_tokens = len(chunks)
+    total_ms = (finished - started) * 1000.0
+    output_tokens = usage_completion_tokens if usage_completion_tokens is not None else len(chunks)
     ttft_ms = (token_times[0] - started) * 1000.0 if token_times else None
-    if len(token_times) > 1:
-        tpot_ms = ((token_times[-1] - token_times[0]) / (len(token_times) - 1)) * 1000.0
-    elif len(token_times) == 1:
+    if output_tokens > 1 and ttft_ms is not None:
+        tpot_ms = (total_ms - ttft_ms) / (output_tokens - 1)
+    elif output_tokens == 1:
         tpot_ms = 0.0
     else:
         tpot_ms = None
@@ -84,7 +104,7 @@ async def send_openai_streaming_request(
         "ttft_ms": ttft_ms,
         "tpot_ms": tpot_ms,
         "output_tokens": output_tokens,
-        "total_ms": (finished - started) * 1000.0,
+        "total_ms": total_ms,
         "text": "".join(chunks),
     }
 
@@ -138,11 +158,19 @@ async def run_benchmark(
     respect_timestamps: bool = True,
 ) -> BenchmarkResult:
     if sender is None:
-        sender = lambda body: send_openai_streaming_request(
-            body,
-            base_url=config.base_url,
-            timeout_s=config.request_timeout_s,
-        )
+        async with httpx.AsyncClient(timeout=httpx.Timeout(config.request_timeout_s)) as client:
+            sender = lambda body: send_openai_streaming_request(
+                body,
+                base_url=config.base_url,
+                timeout_s=config.request_timeout_s,
+                client=client,
+            )
+            return await run_benchmark(
+                records,
+                config,
+                sender=sender,
+                respect_timestamps=respect_timestamps,
+            )
 
     first_timestamp = min((record.timestamp_ms for record in records), default=0)
     tasks = []

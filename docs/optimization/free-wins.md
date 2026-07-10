@@ -65,3 +65,44 @@ A candidate advances only if all 120 trace requests succeed, median TPOT or
 makespan improves beyond baseline noise, and GPQA remains safe. Prefix hashing
 should keep the local GPQA result at `43 / 120`; FP8 KV cache may use the local
 accuracy gate but should not be promoted on speed alone.
+
+## Automated Sweeps
+
+Use the sweep runner to avoid editing compose files and running each command by
+hand. It writes temporary compose overrides under `results/sweeps/_overrides`.
+
+Preview commands without starting Docker:
+
+```powershell
+python scripts/run_serving_sweep.py --mode seqs --seqs 32 64 96 128 --dry-run
+```
+
+Rebuild the H0 baseline with cold repeats before comparing candidates:
+
+```powershell
+python scripts/run_serving_sweep.py --mode baseline --repeat 3 --output-root results\trace-baseline-h0
+```
+
+Run the KV FP8 sequence-limit sweep:
+
+```powershell
+python scripts/run_serving_sweep.py --mode seqs --seqs 32 64 96 128 --repeat 3
+```
+
+Summarize each result root before comparing:
+
+```powershell
+python scripts/summarize_trace_runs.py --root results\trace-sweeps --min-runs 3 --expected-total-count 120 --group-by-candidate
+```
+
+After selecting the best `--max-num-seqs`, sweep token budget around that value:
+
+```powershell
+python scripts/run_serving_sweep.py --mode batched-tokens --fixed-max-num-seqs 64 --batched-tokens 2048 4096 8192
+```
+
+Each candidate starts the server, waits for healthcheck, runs the trace
+benchmark, then stops the server. The runner also calls `docker-compose down`
+before each start so a repeat cannot reuse an already-warm server. Changing
+vLLM serving flags still requires a server restart; the runner only removes the
+manual loop.

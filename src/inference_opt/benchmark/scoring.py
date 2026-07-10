@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
 
 
 @dataclass(frozen=True)
@@ -41,17 +42,37 @@ def request_score(measurement: RequestMeasurement, config: ScoreConfig) -> float
     return config.ttft_weight * s_ttft + (1.0 - config.ttft_weight) * s_tpot
 
 
-def summarize_scores(measurements: list[RequestMeasurement], config: ScoreConfig) -> dict[str, float | int]:
+def _percentile(values: list[float], q: float) -> float | None:
+    if not values:
+        return None
+    sorted_values = sorted(values)
+    index = max(0, min(len(sorted_values) - 1, math.ceil(q * len(sorted_values)) - 1))
+    return sorted_values[index]
+
+
+def summarize_scores(measurements: list[RequestMeasurement], config: ScoreConfig) -> dict[str, float | int | None]:
     scores = [request_score(measurement, config) for measurement in measurements]
     success_count = sum(1 for measurement in measurements if not measurement.error and measurement.output_tokens > 0)
     error_count = len(measurements) - success_count
+    passed_slo = sum(1 for score in scores if score > 0.0)
     effective_request_score = sum(scores) / len(scores) if scores else 0.0
+    ttft_values = [measurement.ttft_ms for measurement in measurements if measurement.ttft_ms is not None]
+    tpot_values = [measurement.tpot_ms for measurement in measurements if measurement.tpot_ms is not None]
+    score_100x_ers = 100.0 * effective_request_score
     return {
         "request_count": len(measurements),
+        "total_count": len(measurements),
         "success_count": success_count,
         "error_count": error_count,
+        "failed_count": error_count,
+        "passed_slo": passed_slo,
+        "ttft_p50_ms": _percentile(ttft_values, 0.50),
+        "ttft_p95_ms": _percentile(ttft_values, 0.95),
+        "tbt_median_ms": _percentile(tpot_values, 0.50),
         "effective_request_score": effective_request_score,
-        "score_100x_ers": 100.0 * effective_request_score,
+        "score_100x_ers": score_100x_ers,
+        "ers": score_100x_ers,
+        "final_score": score_100x_ers,
     }
 
 
