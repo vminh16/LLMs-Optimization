@@ -1,0 +1,15 @@
+{
+  "effective_request_score": 0.0,
+  "error_count": 0,
+  "ers": 0.0,
+  "failed_count": 0,
+  "final_score": 0.0,
+  "passed_slo": 0,
+  "request_count": 120,
+  "score_100x_ers": 0.0,
+  "success_count": 120,
+  "tbt_median_ms": 274.9770559145722,
+  "total_count": 120,
+  "ttft_p50_ms": 21916.984585000137,
+  "ttft_p95_ms": 51989.144633000025
+}
