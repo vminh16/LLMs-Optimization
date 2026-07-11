@@ -66,47 +66,54 @@ makespan improves beyond baseline noise, and GPQA remains safe. Prefix hashing
 should keep the local GPQA result at `43 / 120`; FP8 KV cache may use the local
 accuracy gate but should not be promoted on speed alone.
 
-## Automated Sweeps
+## Experiment 1: Independent BF16 Flags
 
-Use the sweep runner to avoid editing compose files and running each command by
-hand. It writes temporary compose overrides under `results/sweeps/_overrides`.
+Experiment 1 screens five independent changes without FP8 KV or scheduler
+tuning: language-model-only, renderer workers 2, both vLLM performance modes,
+and prefix caching off. The locked H0.1 result under
+`results/trace-baseline-h01` is the comparison baseline and is not rerun by
+default.
 
-Preview commands without starting Docker:
-
-```powershell
-python scripts/run_serving_sweep.py --mode seqs --seqs 32 64 96 128 --dry-run
-```
-
-Rebuild the H0 baseline with cold repeats before comparing candidates:
+Preview every Docker command without creating artifacts or starting Docker:
 
 ```powershell
-python scripts/run_serving_sweep.py --mode baseline --repeat 3 --output-root results\trace-baseline-h01
+python scripts/run_serving_sweep.py --suite experiment1 --dry-run
 ```
 
-Run the KV FP8 sequence-limit sweep:
+Verify Docker, resolved Compose, image CLI flags, the local model, and GPU
+access without loading model weights:
 
 ```powershell
-python scripts/run_serving_sweep.py --mode seqs --seqs 32 64 96 128 --repeat 3
+python scripts/run_serving_sweep.py --suite experiment1 --preflight-only
 ```
 
-Summarize each result root before comparing:
+Run one cold screening measurement per candidate:
 
 ```powershell
-python scripts/summarize_trace_runs.py --root results\trace-sweeps --min-runs 3 --expected-total-count 120 --group-by-candidate
+python scripts/run_serving_sweep.py --suite experiment1 --repeat 1 --output-root results/experiment1
 ```
 
-After selecting the best `--max-num-seqs`, sweep token budget around that value:
+Run or resume a single finalist. Use `--force` only to discard the known
+artifacts for that exact run ID and repeat it from scratch.
 
 ```powershell
-python scripts/run_serving_sweep.py --mode batched-tokens --fixed-max-num-seqs 64 --batched-tokens 2048 4096 8192
+python scripts/run_serving_sweep.py --suite experiment1 --candidate renderer-2 --repeat 3 --resume
 ```
 
-Each candidate starts the server, waits for healthcheck, runs the trace
-benchmark, then stops the server. The runner also calls `docker-compose down`
-before each start so a repeat cannot reuse an already-warm server. Changing
-vLLM serving flags still requires a server restart; the runner only removes the
-manual loop.
+Compare candidates with the H0.1 medians:
 
-H0.1 uses the diverse-content trace by default and records its SHA-256 in each
-summary. The trace is prefix-heavy, so prefix-cache candidates still require
-organizer confirmation even when they win locally.
+```powershell
+python scripts/summarize_experiment.py --min-runs 1
+```
+
+A candidate advances when median TBT improves by at least 1%, or TTFT p95 by
+at least 3%, while makespan does not regress by more than 2%. It is rejected
+when TBT regresses by at least 2%, makespan by at least 3%, or TTFT p95 by at
+least 7%; smaller changes are inconclusive. A finalist needs three clean runs.
+Prefix-off remains provisional until GPQA passes because Qwen3.5 is a hybrid
+attention model and the local trace is not the organizer's private trace.
+
+Each run stores the exact command, trace/config hashes, status, summary,
+requests, and Docker diagnostics under `results/experiment1/<candidate>-NN`.
+The runner waits for stable readiness, refuses silent overwrites, and always
+stops Compose after success or failure.

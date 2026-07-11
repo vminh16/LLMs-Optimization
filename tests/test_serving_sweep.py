@@ -1,57 +1,89 @@
 from pathlib import Path
+import io
 import unittest
 from unittest.mock import call, patch
 
 from inference_opt.serving import sweep
-from inference_opt.serving.sweep import (
-    build_kv_fp8_batched_token_candidates,
-    build_kv_fp8_seq_candidates,
-    build_run_commands,
-    render_compose_override,
-)
+from inference_opt.serving.sweep import build_run_commands, render_compose_override
 from scripts import run_serving_sweep
 
 
 class ServingSweepTest(unittest.TestCase):
+    def test_main_prints_concise_runtime_error_without_traceback(self):
+        stderr = io.StringIO()
+        with patch.object(run_serving_sweep, "run", side_effect=RuntimeError("Start Docker Desktop")):
+            with patch("sys.stderr", stderr):
+                exit_code = run_serving_sweep.main()
+
+        self.assertEqual(exit_code, 2)
+        self.assertEqual(stderr.getvalue(), "error: Start Docker Desktop\n")
+
     def test_cli_defaults_to_diverse_content_trace(self):
         with patch("sys.argv", ["run_serving_sweep.py"]):
             args = run_serving_sweep.parse_args()
 
         self.assertEqual(args.trace, "data/trace-round1-diverse-content.jsonl")
+        self.assertEqual(args.suite, "experiment1")
+        self.assertEqual(args.output_root, "results/experiment1")
 
-    def test_baseline_candidate_keeps_only_baseline_args(self):
-        candidates = sweep.build_baseline_candidates()
+    def test_cli_accepts_candidate_preflight_resume_and_force_controls(self):
+        with patch(
+            "sys.argv",
+            [
+                "run_serving_sweep.py",
+                "--candidate",
+                "renderer-2",
+                "--preflight-only",
+                "--resume",
+            ],
+        ):
+            args = run_serving_sweep.parse_args()
 
-        self.assertEqual([candidate.name for candidate in candidates], ["baseline-cold"])
-        self.assertEqual(candidates[0].extra_args, ())
-        self.assertIn("--enable-prefix-caching", candidates[0].command_args)
-        self.assertNotIn("--kv-cache-dtype=fp8", candidates[0].command_args)
-        self.assertNotIn("--max-num-seqs=64", candidates[0].command_args)
+        self.assertEqual(args.candidate, ["renderer-2"])
+        self.assertTrue(args.preflight_only)
+        self.assertTrue(args.resume)
 
-    def test_seq_sweep_candidates_keep_kv_fp8_and_change_one_scheduler_arg(self):
-        candidates = build_kv_fp8_seq_candidates([32, 64])
-
-        self.assertEqual([candidate.name for candidate in candidates], ["kv-fp8-seqs-32", "kv-fp8-seqs-64"])
-        for candidate, value in zip(candidates, [32, 64]):
-            self.assertIn("--kv-cache-dtype=fp8", candidate.extra_args)
-            self.assertIn("--calculate-kv-scales", candidate.extra_args)
-            self.assertIn(f"--max-num-seqs={value}", candidate.extra_args)
-            self.assertNotIn("--prefix-caching-hash-algo=xxhash", candidate.extra_args)
-            self.assertNotIn("--quantization=fp8", candidate.extra_args)
-
-    def test_batched_token_candidates_pin_best_sequence_limit(self):
-        candidates = build_kv_fp8_batched_token_candidates([2048, 4096], max_num_seqs=64)
+    def test_experiment1_candidates_change_one_bf16_variable(self):
+        candidates = sweep.build_experiment1_candidates()
 
         self.assertEqual(
             [candidate.name for candidate in candidates],
-            ["kv-fp8-seqs-64-btokens-2048", "kv-fp8-seqs-64-btokens-4096"],
+            [
+                "language-only",
+                "renderer-2",
+                "performance-interactivity",
+                "performance-throughput",
+                "prefix-off",
+            ],
         )
-        for candidate, value in zip(candidates, [2048, 4096]):
-            self.assertIn("--max-num-seqs=64", candidate.extra_args)
-            self.assertIn(f"--max-num-batched-tokens={value}", candidate.extra_args)
+        expected_flags = {
+            "language-only": "--language-model-only",
+            "renderer-2": "--renderer-num-workers=2",
+            "performance-interactivity": "--performance-mode=interactivity",
+            "performance-throughput": "--performance-mode=throughput",
+            "prefix-off": "--no-enable-prefix-caching",
+        }
+        for candidate in candidates:
+            self.assertIn(expected_flags[candidate.name], candidate.command_args)
+            self.assertNotIn("--kv-cache-dtype=fp8", candidate.command_args)
+            self.assertNotIn("--max-num-seqs=64", candidate.command_args)
+
+    def test_prefix_off_has_no_positive_prefix_flag(self):
+        candidate = sweep.select_candidates(["prefix-off"])[0]
+
+        self.assertIn("--no-enable-prefix-caching", candidate.command_args)
+        self.assertNotIn("--enable-prefix-caching", candidate.command_args)
+
+    def test_validate_command_args_rejects_duplicate_flag_keys(self):
+        with self.assertRaisesRegex(ValueError, "duplicate vLLM flag"):
+            sweep.validate_command_args(("--performance-mode=balanced", "--performance-mode=throughput"))
+
+    def test_select_candidates_rejects_unknown_name(self):
+        with self.assertRaisesRegex(ValueError, "unknown Experiment 1 candidate"):
+            sweep.select_candidates(["missing"])
 
     def test_compose_override_replaces_only_model_command(self):
-        candidate = build_kv_fp8_seq_candidates([64])[0]
+        candidate = sweep.select_candidates(["renderer-2"])[0]
         compose = render_compose_override(candidate)
 
         self.assertIn("services:", compose)
@@ -60,25 +92,25 @@ class ServingSweepTest(unittest.TestCase):
         self.assertIn("- --model=/model #Don't change this to vllm-server", compose)
         self.assertIn("- --served-model-name=Qwen3.5-2B #Don't change this to vllm-server", compose)
         self.assertIn("- --enable-prefix-caching", compose)
-        self.assertIn("- --kv-cache-dtype=fp8", compose)
-        self.assertIn("- --max-num-seqs=64", compose)
+        self.assertIn("- --renderer-num-workers=2", compose)
+        self.assertNotIn("--kv-cache-dtype=fp8", compose)
         self.assertNotIn("entrypoint:", compose)
         self.assertNotIn("image:", compose)
         self.assertNotIn("volumes:", compose)
 
     def test_run_command_plan_downs_before_start_then_healthchecks_benchmarks_and_stops(self):
-        candidate = build_kv_fp8_seq_candidates([64])[0]
+        candidate = sweep.select_candidates(["renderer-2"])[0]
         commands = build_run_commands(
             base_compose=Path("docker-compose.local.yml"),
-            override_compose=Path("results/sweeps/_overrides/kv-fp8-seqs-64/compose.override.yml"),
+            override_compose=Path("results/experiment1/renderer-2-01/compose.override.yml"),
             trace=Path("data/trace-round1.jsonl"),
             output_root=Path("results/trace-sweeps"),
-            run_id="kv-fp8-seqs-64-01",
+            run_id="renderer-2-01",
             python_executable="python",
         )
 
-        self.assertEqual(commands[0], ["docker-compose", "-f", "docker-compose.local.yml", "-f", "results/sweeps/_overrides/kv-fp8-seqs-64/compose.override.yml", "down"])
-        self.assertEqual(commands[1], ["docker-compose", "-f", "docker-compose.local.yml", "-f", "results/sweeps/_overrides/kv-fp8-seqs-64/compose.override.yml", "up", "-d", "model"])
+        self.assertEqual(commands[0], ["docker-compose", "-f", "docker-compose.local.yml", "-f", "results/experiment1/renderer-2-01/compose.override.yml", "down"])
+        self.assertEqual(commands[1], ["docker-compose", "-f", "docker-compose.local.yml", "-f", "results/experiment1/renderer-2-01/compose.override.yml", "up", "-d", "model"])
         self.assertEqual(
             commands[2],
             [
@@ -105,10 +137,10 @@ class ServingSweepTest(unittest.TestCase):
                 "--output-root",
                 "results/trace-sweeps",
                 "--run-id",
-                "kv-fp8-seqs-64-01",
+                "renderer-2-01",
             ],
         )
-        self.assertEqual(commands[4], ["docker-compose", "-f", "docker-compose.local.yml", "-f", "results/sweeps/_overrides/kv-fp8-seqs-64/compose.override.yml", "down"])
+        self.assertEqual(commands[4], ["docker-compose", "-f", "docker-compose.local.yml", "-f", "results/experiment1/renderer-2-01/compose.override.yml", "down"])
 
     def test_run_commands_invokes_one_stable_health_wait(self):
         commands = [["down"], ["up"], ["health"], ["benchmark"], ["cleanup"]]

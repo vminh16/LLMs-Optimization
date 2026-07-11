@@ -30,6 +30,31 @@ def write_summary(root: Path, run_id: str, **overrides):
 
 
 class BenchmarkReportTest(unittest.TestCase):
+    def test_compare_advances_meaningful_tbt_gain_without_makespan_regression(self):
+        baseline = {"tbt_median_ms": 100.0, "ttft_p95_ms": 1000.0, "makespan_ms": 10000.0}
+        candidate = {"tbt_median_ms": 98.0, "ttft_p95_ms": 1000.0, "makespan_ms": 10100.0}
+
+        result = report.compare_candidate_to_baseline(baseline, candidate)
+
+        self.assertEqual(result["decision"], "advance")
+        self.assertAlmostEqual(result["changes_pct"]["tbt_median_ms"], -2.0)
+
+    def test_compare_rejects_material_tbt_regression(self):
+        baseline = {"tbt_median_ms": 100.0, "ttft_p95_ms": 1000.0, "makespan_ms": 10000.0}
+        candidate = {"tbt_median_ms": 102.0, "ttft_p95_ms": 950.0, "makespan_ms": 9900.0}
+
+        result = report.compare_candidate_to_baseline(baseline, candidate)
+
+        self.assertEqual(result["decision"], "reject")
+
+    def test_compare_marks_small_changes_inconclusive(self):
+        baseline = {"tbt_median_ms": 100.0, "ttft_p95_ms": 1000.0, "makespan_ms": 10000.0}
+        candidate = {"tbt_median_ms": 99.5, "ttft_p95_ms": 980.0, "makespan_ms": 10050.0}
+
+        result = report.compare_candidate_to_baseline(baseline, candidate)
+
+        self.assertEqual(result["decision"], "inconclusive")
+
     def test_summarize_run_group_reports_median_mad_and_ready_state(self):
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -50,6 +75,7 @@ class BenchmarkReportTest(unittest.TestCase):
         self.assertEqual(result["metrics"]["makespan_ms"]["median"], 10000.0)
         self.assertEqual(result["metrics"]["dispatch_lag_p95_ms"]["median"], 5.0)
         self.assertEqual(result["metrics"]["ers"]["median"], 10.0)
+        self.assertEqual(result["identity"], {"measurement_version": "h0.1", "trace_sha256": "same-trace"})
 
     def test_summarize_run_group_blocks_when_runs_are_incomplete(self):
         with TemporaryDirectory() as tmp:

@@ -29,28 +29,28 @@ class LocalComposeTest(unittest.TestCase):
         self.assertNotIn("./models/Qwen3.5-2B", compose)
         self.assertNotIn("volumes:", compose)
 
-    def test_submission_compose_uses_kv_fp8_scheduler_candidate(self):
+    def test_submission_compose_is_current_bf16_baseline(self):
         compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
 
         self.assertIn("- python3 #Don't change this to vllm-server", compose)
         self.assertIn("- -m  #Don't change this to vllm-server", compose)
         self.assertIn("- vllm.entrypoints.openai.api_server #Don't change this to vllm-server", compose)
         self.assertIn("- --enable-prefix-caching", compose)
-        self.assertIn("- --kv-cache-dtype=fp8", compose)
-        self.assertIn("- --calculate-kv-scales", compose)
-        self.assertIn("- --max-num-seqs=64", compose)
+        self.assertNotIn("--kv-cache-dtype", compose)
+        self.assertNotIn("--calculate-kv-scales", compose)
+        self.assertNotIn("--max-num-seqs", compose)
         self.assertNotIn("--prefix-caching-hash-algo", compose)
         self.assertNotIn("--quantization=fp8", compose)
 
-    def test_prefix_xxhash_experiment_overrides_only_model_command(self):
+    def test_prefix_xxhash_experiment_uses_custom_image_and_expected_command(self):
         compose = self.read_experiment_compose("freewin-prefix-xxhash.compose.yml")
 
-        self.assertIn("- --model=/model #Don't change this to vllm-server", compose)
-        self.assertIn("- --served-model-name=Qwen3.5-2B #Don't change this to vllm-server", compose)
+        self.assertIn("image: llms-optimization/vllm-openai:v0.22.1-xxhash", compose)
+        self.assertIn("- --model=/model", compose)
+        self.assertIn("- --served-model-name=Qwen3.5-2B", compose)
         self.assertIn("- --enable-prefix-caching", compose)
         self.assertIn("- --prefix-caching-hash-algo=xxhash", compose)
         self.assertNotIn("entrypoint:", compose)
-        self.assertNotIn("image:", compose)
         self.assertNotIn("volumes:", compose)
         self.assertNotIn("--kv-cache-dtype", compose)
 

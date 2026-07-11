@@ -23,6 +23,28 @@ METRIC_KEYS = (
 IDENTITY_KEYS = ("measurement_version", "trace_sha256")
 
 
+def compare_candidate_to_baseline(
+    baseline: dict[str, float],
+    candidate: dict[str, float],
+) -> dict[str, Any]:
+    keys = ("tbt_median_ms", "ttft_p95_ms", "makespan_ms")
+    changes = {
+        key: (float(candidate[key]) / float(baseline[key]) - 1.0) * 100.0
+        for key in keys
+    }
+    reject = (
+        changes["tbt_median_ms"] >= 2.0
+        or changes["makespan_ms"] >= 3.0
+        or changes["ttft_p95_ms"] >= 7.0
+    )
+    advance = (
+        (changes["tbt_median_ms"] <= -1.0 or changes["ttft_p95_ms"] <= -3.0)
+        and changes["makespan_ms"] <= 2.0
+    )
+    decision = "reject" if reject else "advance" if advance else "inconclusive"
+    return {"decision": decision, "changes_pct": changes}
+
+
 def load_run_summaries(root: Path) -> list[dict[str, Any]]:
     runs = []
     for summary_path in sorted(root.glob("*/summary.json")):
@@ -51,6 +73,14 @@ def _identity_issues(runs: list[dict[str, Any]]) -> list[str]:
         if len(values) > 1:
             issues.append(f"mixed {key} values: {', '.join(values)}")
     return issues
+
+
+def _identity(runs: list[dict[str, Any]]) -> dict[str, str | None]:
+    identity = {}
+    for key in IDENTITY_KEYS:
+        values = {str(run[key]) for run in runs if run.get(key) is not None}
+        identity[key] = next(iter(values)) if len(values) == 1 else None
+    return identity
 
 
 def summarize_run_group(
@@ -90,6 +120,7 @@ def summarize_run_group(
         "expected_total_count": expected_total_count,
         "ready_for_comparison": not issues,
         "blocking_issues": issues,
+        "identity": _identity(runs),
         "metrics": metrics,
     }
 
@@ -130,6 +161,7 @@ def summarize_candidate_groups(
             if values:
                 metrics[key] = _metric_summary(values)
         summary["metrics"] = metrics
+        summary["identity"] = _identity(group_runs)
         summary["ready_for_comparison"] = not summary["blocking_issues"]
         summaries[name] = summary
 

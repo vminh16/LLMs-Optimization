@@ -20,47 +20,60 @@ BASE_COMMAND_ARGS = (
 @dataclass(frozen=True)
 class SweepCandidate:
     name: str
-    extra_args: tuple[str, ...]
-
-    @property
-    def command_args(self) -> tuple[str, ...]:
-        return BASE_COMMAND_ARGS + self.extra_args
+    command_args: tuple[str, ...]
 
 
 def build_baseline_candidates() -> list[SweepCandidate]:
-    return [SweepCandidate(name="baseline-cold", extra_args=())]
+    return [SweepCandidate(name="baseline-cold", command_args=BASE_COMMAND_ARGS)]
 
 
-def build_kv_fp8_seq_candidates(values: list[int]) -> list[SweepCandidate]:
-    return [
+def _replace_prefix_flag(replacement: str) -> tuple[str, ...]:
+    return tuple(arg for arg in BASE_COMMAND_ARGS if arg != "--enable-prefix-caching") + (replacement,)
+
+
+def validate_command_args(command_args: tuple[str, ...]) -> None:
+    keys = []
+    for arg in command_args:
+        key = arg.split(" #", 1)[0].split("=", 1)[0]
+        if key in keys:
+            raise ValueError(f"duplicate vLLM flag: {key}")
+        keys.append(key)
+    if "--enable-prefix-caching" in keys and "--no-enable-prefix-caching" in keys:
+        raise ValueError("conflicting prefix caching flags")
+
+
+def build_experiment1_candidates() -> list[SweepCandidate]:
+    candidates = [
+        SweepCandidate("language-only", BASE_COMMAND_ARGS + ("--language-model-only",)),
+        SweepCandidate("renderer-2", BASE_COMMAND_ARGS + ("--renderer-num-workers=2",)),
         SweepCandidate(
-            name=f"kv-fp8-seqs-{value}",
-            extra_args=(
-                "--kv-cache-dtype=fp8",
-                "--calculate-kv-scales",
-                f"--max-num-seqs={value}",
-            ),
-        )
-        for value in values
-    ]
-
-
-def build_kv_fp8_batched_token_candidates(values: list[int], *, max_num_seqs: int) -> list[SweepCandidate]:
-    return [
+            "performance-interactivity",
+            BASE_COMMAND_ARGS + ("--performance-mode=interactivity",),
+        ),
         SweepCandidate(
-            name=f"kv-fp8-seqs-{max_num_seqs}-btokens-{value}",
-            extra_args=(
-                "--kv-cache-dtype=fp8",
-                "--calculate-kv-scales",
-                f"--max-num-seqs={max_num_seqs}",
-                f"--max-num-batched-tokens={value}",
-            ),
-        )
-        for value in values
+            "performance-throughput",
+            BASE_COMMAND_ARGS + ("--performance-mode=throughput",),
+        ),
+        SweepCandidate("prefix-off", _replace_prefix_flag("--no-enable-prefix-caching")),
     ]
+    for candidate in candidates:
+        validate_command_args(candidate.command_args)
+    return candidates
+
+
+def select_candidates(names: list[str] | None = None) -> list[SweepCandidate]:
+    candidates = build_experiment1_candidates()
+    if not names:
+        return candidates
+    by_name = {candidate.name: candidate for candidate in candidates}
+    unknown = [name for name in names if name not in by_name]
+    if unknown:
+        raise ValueError(f"unknown Experiment 1 candidate: {', '.join(unknown)}")
+    return [by_name[name] for name in names]
 
 
 def render_compose_override(candidate: SweepCandidate) -> str:
+    validate_command_args(candidate.command_args)
     lines = [
         "services:",
         "  model:",
