@@ -109,8 +109,8 @@ class ServingSweepTest(unittest.TestCase):
             python_executable="python",
         )
 
-        self.assertEqual(commands[0], ["docker-compose", "-f", "docker-compose.local.yml", "-f", "results/experiment1/renderer-2-01/compose.override.yml", "down"])
-        self.assertEqual(commands[1], ["docker-compose", "-f", "docker-compose.local.yml", "-f", "results/experiment1/renderer-2-01/compose.override.yml", "up", "-d", "model"])
+        self.assertEqual(commands[0], ["docker", "compose", "-f", "docker-compose.local.yml", "-f", "results/experiment1/renderer-2-01/compose.override.yml", "down"])
+        self.assertEqual(commands[1], ["docker", "compose", "-f", "docker-compose.local.yml", "-f", "results/experiment1/renderer-2-01/compose.override.yml", "up", "-d", "model"])
         self.assertEqual(
             commands[2],
             [
@@ -140,7 +140,7 @@ class ServingSweepTest(unittest.TestCase):
                 "renderer-2-01",
             ],
         )
-        self.assertEqual(commands[4], ["docker-compose", "-f", "docker-compose.local.yml", "-f", "results/experiment1/renderer-2-01/compose.override.yml", "down"])
+        self.assertEqual(commands[4], ["docker", "compose", "-f", "docker-compose.local.yml", "-f", "results/experiment1/renderer-2-01/compose.override.yml", "down"])
 
     def test_run_commands_invokes_one_stable_health_wait(self):
         commands = [["down"], ["up"], ["health"], ["benchmark"], ["cleanup"]]

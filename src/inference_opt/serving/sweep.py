@@ -108,7 +108,7 @@ def build_run_commands(
     total_timeout_s: float = 300.0,
     stable_successes: int = 2,
 ) -> list[list[str]]:
-    compose_args = ["docker-compose", "-f", _path(base_compose), "-f", _path(override_compose)]
+    compose_args = ["docker", "compose", "-f", _path(base_compose), "-f", _path(override_compose)]
     return [
         compose_args + ["down"],
         compose_args + ["up", "-d", "model"],

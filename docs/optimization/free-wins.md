@@ -36,13 +36,13 @@ Transformer, and accuracy can regress silently.
 Start one candidate at a time:
 
 ```powershell
-docker-compose -f docker-compose.local.yml -f configs/experiments/freewin-prefix-xxhash.compose.yml up model
+docker compose -f docker-compose.local.yml -f configs/experiments/freewin-prefix-xxhash.compose.yml up model
 ```
 
 or:
 
 ```powershell
-docker-compose -f docker-compose.local.yml -f configs/experiments/freewin-kv-fp8.compose.yml up model
+docker compose -f docker-compose.local.yml -f configs/experiments/freewin-kv-fp8.compose.yml up model
 ```
 
 Then run the same trace benchmark:

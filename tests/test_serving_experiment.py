@@ -120,6 +120,7 @@ class ServingExperimentTest(unittest.TestCase):
             commands = build_preflight_commands(run)
 
         self.assertEqual(commands[0], ["docker", "info"])
+        self.assertEqual(commands[1][:2], ["docker", "compose"])
         self.assertEqual(commands[1][-2:], ["config", "--quiet"])
         self.assertEqual(commands[2][-3:], ["config", "--format", "json"])
         self.assertEqual(commands[3][-5:], ["run", "--rm", "--no-deps", "model", "--help"])

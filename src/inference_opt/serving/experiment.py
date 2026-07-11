@@ -143,7 +143,8 @@ def prepare_run(run: ExperimentRun, *, resume: bool = False, force: bool = False
 
 def _compose_args(run: ExperimentRun) -> list[str]:
     return [
-        "docker-compose",
+        "docker",
+        "compose",
         "-f",
         run.base_compose.as_posix(),
         "-f",
