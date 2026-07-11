@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import argparse
+import os
 from pathlib import Path
+import shlex
 import subprocess
 import sys
 from tempfile import TemporaryDirectory
@@ -17,6 +19,10 @@ from inference_opt.serving.sweep import (
     build_run_commands,
     select_candidates,
 )
+
+
+def format_command(command: list[str], *, os_name: str = os.name) -> str:
+    return subprocess.list2cmdline(command) if os_name == "nt" else shlex.join(command)
 
 
 def parse_args() -> argparse.Namespace:
@@ -52,7 +58,7 @@ def run() -> int:
                 prepare_run(run)
                 if args.dry_run:
                     for command in build_preflight_commands(run):
-                        print(subprocess.list2cmdline(command))
+                        print(format_command(command))
                 else:
                     print(f"preflight {candidate.name}")
                     run_preflight(run)
@@ -75,9 +81,9 @@ def run() -> int:
             )
             if args.dry_run:
                 for command in build_preflight_commands(run):
-                    print(subprocess.list2cmdline(command))
+                    print(format_command(command))
                 for command in commands:
-                    print(subprocess.list2cmdline(command))
+                    print(format_command(command))
             else:
                 if prepare_run(run, resume=args.resume, force=args.force):
                     print(f"skipping completed {run.run_id}")

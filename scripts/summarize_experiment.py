@@ -33,7 +33,10 @@ def build_report(args: argparse.Namespace) -> dict:
         Path(args.baseline_root), min_runs=3, expected_total_count=args.expected_total_count
     )
     candidates = summarize_candidate_groups(
-        Path(args.experiment_root), min_runs=args.min_runs, expected_total_count=args.expected_total_count
+        Path(args.experiment_root),
+        min_runs=args.min_runs,
+        expected_total_count=args.expected_total_count,
+        require_manifests=True,
     )
     comparisons = {}
     if baseline["ready_for_comparison"]:

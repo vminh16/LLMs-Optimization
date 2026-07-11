@@ -16,6 +16,20 @@ Execute = Callable[..., subprocess.CompletedProcess[str]]
 MEASUREMENT_VERSION = "h0.1"
 
 
+class ExperimentCommandError(RuntimeError):
+    pass
+
+
+def _execute_checked(stage: str, command: list[str], execute: Execute) -> subprocess.CompletedProcess[str]:
+    try:
+        return execute(command, check=True, capture_output=True, text=True)
+    except FileNotFoundError as exc:
+        raise ExperimentCommandError(f"{stage} failed: command not found: {command[0]}") from exc
+    except subprocess.CalledProcessError as exc:
+        detail = (exc.stderr or exc.stdout or str(exc)).strip()
+        raise ExperimentCommandError(f"{stage} failed: {detail}") from exc
+
+
 def _file_sha256(path: Path) -> str:
     digest = sha256()
     with path.open("rb") as file:
@@ -165,8 +179,9 @@ def build_preflight_commands(run: ExperimentRun) -> list[list[str]]:
             "--rm",
             "--gpus",
             "all",
-            run.image,
+            "--entrypoint",
             "python3",
+            run.image,
             "-c",
             "import torch; assert torch.cuda.is_available()",
         ],
@@ -190,14 +205,14 @@ def _validate_local_model(run: ExperimentRun) -> None:
 def run_preflight(run: ExperimentRun, *, execute: Execute = subprocess.run) -> None:
     _validate_local_model(run)
     commands = build_preflight_commands(run)
+    _execute_checked("Docker engine check", commands[0], execute)
+    _execute_checked("Compose validation", commands[1], execute)
+    config = _execute_checked("Compose JSON rendering", commands[2], execute)
     try:
-        execute(commands[0], check=True, capture_output=True, text=True)
-    except (FileNotFoundError, subprocess.CalledProcessError) as exc:
-        raise RuntimeError("Docker engine is unavailable; start Docker Desktop and retry") from exc
-
-    execute(commands[1], check=True, capture_output=True, text=True)
-    config = execute(commands[2], check=True, capture_output=True, text=True)
-    payload = json.loads(config.stdout)
+        payload = json.loads(config.stdout)
+    except json.JSONDecodeError as exc:
+        detail = (config.stderr or config.stdout or "empty output").strip()
+        raise ExperimentCommandError(f"Compose JSON rendering returned invalid JSON: {detail}") from exc
     model = payload["services"]["model"]
     if model.get("entrypoint") != ["python3", "-m", "vllm.entrypoints.openai.api_server"]:
         raise ValueError("resolved Compose entrypoint does not match the organizer contract")
@@ -206,14 +221,25 @@ def run_preflight(run: ExperimentRun, *, execute: Execute = subprocess.run) -> N
     if model.get("image") != run.image:
         raise ValueError("resolved Compose image changed unexpectedly")
 
-    help_result = execute(commands[3], check=True, capture_output=True, text=True)
+    help_result = _execute_checked("vLLM CLI validation", commands[3], execute)
     help_text = f"{help_result.stdout}\n{help_result.stderr}"
     baseline_flags = {arg.split(" #", 1)[0] for arg in BASE_COMMAND_ARGS}
     candidate_flags = set(_expected_command(run)) - baseline_flags
     for arg in candidate_flags:
         if arg.split("=", 1)[0] not in help_text:
             raise ValueError(f"vLLM image does not advertise candidate flag: {arg}")
-    execute(commands[4], check=True, capture_output=True, text=True)
+    _execute_checked("GPU probe", commands[4], execute)
+
+
+def _cleanup(run: ExperimentRun, execute: Execute) -> str | None:
+    command = _compose_args(run) + ["down"]
+    try:
+        result = execute(command, check=False, capture_output=True, text=True)
+    except Exception as exc:
+        return str(exc)
+    if result.returncode != 0:
+        return (result.stderr or result.stdout or f"exit code {result.returncode}").strip()
+    return None
 
 
 def _capture_diagnostics(run: ExperimentRun, execute: Execute) -> None:
@@ -265,19 +291,32 @@ def run_experiment(
         stable_successes=stable_successes,
     )
     _write_manifest(run, "running", started_at=_now())
+    primary_error: Exception | None = None
     try:
         if not skip_preflight:
             run_preflight(run, execute=execute)
-        execute(commands[0], check=False)
-        execute(commands[1], check=True)
-        execute(commands[2], check=True)
-        execute(commands[3], check=True)
+        _execute_checked("initial cleanup", commands[0], execute)
+        _execute_checked("model startup", commands[1], execute)
+        _execute_checked("model readiness", commands[2], execute)
+        _execute_checked("trace benchmark", commands[3], execute)
         _validate_summary(run)
         _capture_diagnostics(run, execute)
         _write_manifest(run, "completed", completed_at=_now())
     except Exception as exc:
+        primary_error = exc
         _capture_diagnostics(run, execute)
         _write_manifest(run, "failed", error=f"{type(exc).__name__}: {exc}")
         raise
     finally:
-        execute(commands[4], check=False)
+        cleanup_error = _cleanup(run, execute)
+        if cleanup_error:
+            if primary_error is not None:
+                _write_manifest(
+                    run,
+                    "failed",
+                    error=f"{type(primary_error).__name__}: {primary_error}",
+                    cleanup_error=cleanup_error,
+                )
+            else:
+                _write_manifest(run, "failed", cleanup_error=cleanup_error)
+                raise ExperimentCommandError(f"final cleanup failed: {cleanup_error}")

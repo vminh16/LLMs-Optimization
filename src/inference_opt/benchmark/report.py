@@ -21,6 +21,7 @@ METRIC_KEYS = (
 )
 
 IDENTITY_KEYS = ("measurement_version", "trace_sha256")
+COMPARISON_METRIC_KEYS = ("tbt_median_ms", "ttft_p95_ms", "makespan_ms")
 
 
 def compare_candidate_to_baseline(
@@ -103,6 +104,9 @@ def summarize_run_group(
             issues.append(f"{run_id} has failed_count={failed_count}")
         if total_count != expected_total_count:
             issues.append(f"{run_id} has total_count={total_count}, expected {expected_total_count}")
+        for key in COMPARISON_METRIC_KEYS:
+            if run.get(key) is None:
+                issues.append(f"{run_id} is missing {key}")
 
     issues.extend(_identity_issues(runs))
 
@@ -134,6 +138,7 @@ def summarize_candidate_groups(
     *,
     min_runs: int,
     expected_total_count: int,
+    require_manifests: bool = False,
 ) -> dict[str, Any]:
     runs = load_run_summaries(root)
     groups: dict[str, list[dict[str, Any]]] = {}
@@ -152,6 +157,22 @@ def summarize_candidate_groups(
             issue for issue in summary["blocking_issues"] if any(run_id in issue for run_id in run_ids)
         ]
         summary["blocking_issues"].extend(_identity_issues(group_runs))
+        if require_manifests:
+            for run in group_runs:
+                run_id = str(run["run_id"])
+                manifest_path = root / run_id / "experiment.json"
+                if not manifest_path.exists():
+                    summary["blocking_issues"].append(f"{run_id} is missing experiment.json")
+                    continue
+                try:
+                    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                except json.JSONDecodeError:
+                    summary["blocking_issues"].append(f"{run_id} has invalid experiment.json")
+                    continue
+                if manifest.get("candidate") != name:
+                    summary["blocking_issues"].append(f"{run_id} candidate mismatch in experiment.json")
+                if manifest.get("status") != "completed":
+                    summary["blocking_issues"].append(f"{run_id} manifest status is not completed")
         if len(group_runs) < min_runs:
             summary["blocking_issues"].insert(0, f"expected at least {min_runs} runs, found {len(group_runs)}")
 

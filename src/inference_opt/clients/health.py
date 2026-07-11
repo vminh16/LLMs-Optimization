@@ -39,9 +39,9 @@ def wait_for_model(
     if stable_successes < 1:
         raise ValueError("stable_successes must be at least 1")
 
-    started = time.monotonic()
     if startup_grace_s > 0:
         time.sleep(startup_grace_s)
+    started = time.monotonic()
 
     consecutive_successes = 0
     last_error: Exception | None = None

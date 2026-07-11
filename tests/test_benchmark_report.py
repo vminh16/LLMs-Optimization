@@ -29,6 +29,13 @@ def write_summary(root: Path, run_id: str, **overrides):
     (run_dir / "summary.json").write_text(json.dumps(summary), encoding="utf-8")
 
 
+def write_manifest(root: Path, run_id: str, *, candidate: str, status: str = "completed"):
+    (root / run_id / "experiment.json").write_text(
+        json.dumps({"run_id": run_id, "candidate": candidate, "status": status}),
+        encoding="utf-8",
+    )
+
+
 class BenchmarkReportTest(unittest.TestCase):
     def test_compare_advances_meaningful_tbt_gain_without_makespan_regression(self):
         baseline = {"tbt_median_ms": 100.0, "ttft_p95_ms": 1000.0, "makespan_ms": 10000.0}
@@ -113,6 +120,51 @@ class BenchmarkReportTest(unittest.TestCase):
         self.assertEqual(sorted(result["groups"]), ["kv-fp8-seqs-32", "kv-fp8-seqs-64"])
         self.assertEqual(result["groups"]["kv-fp8-seqs-32"]["metrics"]["ers"]["median"], 9.0)
         self.assertEqual(result["groups"]["kv-fp8-seqs-64"]["metrics"]["ers"]["median"], 21.0)
+
+    def test_candidate_group_blocks_missing_or_mismatched_manifest(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write_summary(root, "renderer-2-01")
+            write_summary(root, "language-only-01")
+            write_manifest(root, "language-only-01", candidate="wrong-candidate")
+
+            result = report.summarize_candidate_groups(
+                root,
+                min_runs=1,
+                expected_total_count=120,
+                require_manifests=True,
+            )
+
+        self.assertFalse(result["groups"]["renderer-2"]["ready_for_comparison"])
+        self.assertIn("missing experiment.json", result["groups"]["renderer-2"]["blocking_issues"][0])
+        self.assertFalse(result["groups"]["language-only"]["ready_for_comparison"])
+        self.assertIn("candidate mismatch", result["groups"]["language-only"]["blocking_issues"][0])
+
+    def test_candidate_group_blocks_invalid_manifest_json(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write_summary(root, "renderer-2-01")
+            (root / "renderer-2-01" / "experiment.json").write_text("not-json", encoding="utf-8")
+
+            result = report.summarize_candidate_groups(
+                root,
+                min_runs=1,
+                expected_total_count=120,
+                require_manifests=True,
+            )
+
+        self.assertFalse(result["groups"]["renderer-2"]["ready_for_comparison"])
+        self.assertIn("invalid experiment.json", result["groups"]["renderer-2"]["blocking_issues"][0])
+
+    def test_run_group_blocks_missing_comparison_metric(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write_summary(root, "renderer-2-01", makespan_ms=None)
+
+            result = report.summarize_run_group(root, min_runs=1, expected_total_count=120)
+
+        self.assertFalse(result["ready_for_comparison"])
+        self.assertIn("renderer-2-01 is missing makespan_ms", result["blocking_issues"])
 
 
 if __name__ == "__main__":

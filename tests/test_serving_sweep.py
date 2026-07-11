@@ -1,5 +1,6 @@
 from pathlib import Path
 import io
+import shlex
 import unittest
 from unittest.mock import call, patch
 
@@ -9,6 +10,13 @@ from scripts import run_serving_sweep
 
 
 class ServingSweepTest(unittest.TestCase):
+    def test_posix_dry_run_uses_shell_safe_quoting(self):
+        command = ["python", "-c", "print('x y')"]
+
+        rendered = run_serving_sweep.format_command(command, os_name="posix")
+
+        self.assertEqual(shlex.split(rendered), command)
+
     def test_main_prints_concise_runtime_error_without_traceback(self):
         stderr = io.StringIO()
         with patch.object(run_serving_sweep, "run", side_effect=RuntimeError("Start Docker Desktop")):

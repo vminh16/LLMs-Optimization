@@ -74,6 +74,42 @@ and prefix caching off. The locked H0.1 result under
 `results/trace-baseline-h01` is the comparison baseline and is not rerun by
 default.
 
+### Linux VM Gate
+
+Use Docker Compose v2 (`docker compose`), not the legacy
+`docker-compose` 1.x binary. Check the VM before running the suite:
+
+```bash
+python --version
+docker compose version
+nvidia-smi
+docker run --rm --gpus all --entrypoint python3 vllm/vllm-openai:v0.22.1 \
+  -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name(0))"
+```
+
+The GPU probe must print `True` and the expected GPU name. Then validate each
+candidate's resolved Compose command and vLLM CLI without loading model
+weights:
+
+```bash
+python scripts/run_serving_sweep.py --suite experiment1 --preflight-only
+```
+
+Preflight proves environment and CLI compatibility only. It cannot detect
+model-load OOM, CUDA graph compilation failures, or actual startup time. Use
+one real candidate as a canary before the full sweep:
+
+```bash
+python scripts/run_serving_sweep.py --suite experiment1 --candidate language-only --repeat 1
+```
+
+If the canary completes, continue the remaining candidates while preserving
+its valid artifact:
+
+```bash
+python scripts/run_serving_sweep.py --suite experiment1 --repeat 1 --resume
+```
+
 Preview every Docker command without creating artifacts or starting Docker:
 
 ```powershell
