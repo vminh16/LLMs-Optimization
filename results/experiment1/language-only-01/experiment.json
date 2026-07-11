@@ -1,0 +1,23 @@
+{
+  "base_compose_sha256": "f415754136949b903e74843f0cbc284ae313dab4b8c7d9e88ade2f43bc8d76c3",
+  "candidate": "language-only",
+  "command_args": [
+    "--model=/model #Don't change this to vllm-server",
+    "--served-model-name=Qwen3.5-2B #Don't change this to vllm-server",
+    "--host=0.0.0.0 #Don't change this to vllm-server",
+    "--port=8000 #Don't change this to vllm-server",
+    "--max-model-len=262144",
+    "--gpu-memory-utilization=0.95",
+    "--tensor-parallel-size=1",
+    "--enable-prefix-caching",
+    "--language-model-only"
+  ],
+  "completed_at": "2026-07-11T08:53:17.242092+00:00",
+  "fingerprint": "37daac8c1e534c17e26c249ae9afffa1c35a7d7c2613630514e7b6334fa7870e",
+  "image": "vllm/vllm-openai:v0.22.1",
+  "measurement_version": "h0.1",
+  "run_id": "language-only-01",
+  "status": "completed",
+  "trace_sha256": "fcf8992f7a0618f3f7252f706e7999d97bc55380c419a2a03823985f45a8d67f",
+  "updated_at": "2026-07-11T08:53:17.242134+00:00"
+}
