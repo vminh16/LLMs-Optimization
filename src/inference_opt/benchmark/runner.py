@@ -42,10 +42,14 @@ def _content_from_chunk(payload: dict[str, Any]) -> str:
     return str(delta.get("content") or delta.get("reasoning_content") or choice.get("text") or "")
 
 
-def _completion_tokens_from_chunk(payload: dict[str, Any]) -> int | None:
+def _usage_from_chunk(payload: dict[str, Any]) -> tuple[int | None, int | None]:
     usage = payload.get("usage") or {}
+    prompt_tokens = usage.get("prompt_tokens")
     completion_tokens = usage.get("completion_tokens")
-    return int(completion_tokens) if completion_tokens is not None else None
+    return (
+        int(prompt_tokens) if prompt_tokens is not None else None,
+        int(completion_tokens) if completion_tokens is not None else None,
+    )
 
 
 async def send_openai_streaming_request(
@@ -63,6 +67,7 @@ async def send_openai_streaming_request(
 
     chunks: list[str] = []
     token_times: list[float] = []
+    usage_prompt_tokens: int | None = None
     usage_completion_tokens: int | None = None
     started = perf_counter()
 
@@ -80,7 +85,11 @@ async def send_openai_streaming_request(
                 if data == "[DONE]":
                     break
                 payload = json.loads(data)
-                usage_completion_tokens = _completion_tokens_from_chunk(payload) or usage_completion_tokens
+                prompt_tokens, completion_tokens = _usage_from_chunk(payload)
+                if prompt_tokens is not None:
+                    usage_prompt_tokens = prompt_tokens
+                if completion_tokens is not None:
+                    usage_completion_tokens = completion_tokens
                 content = _content_from_chunk(payload)
                 if content:
                     token_times.append(perf_counter())
@@ -91,7 +100,10 @@ async def send_openai_streaming_request(
 
     finished = perf_counter()
     total_ms = (finished - started) * 1000.0
-    output_tokens = usage_completion_tokens if usage_completion_tokens is not None else len(chunks)
+    if usage_prompt_tokens is None or usage_completion_tokens is None:
+        raise ValueError("Streaming response did not include complete token usage")
+
+    output_tokens = usage_completion_tokens
     ttft_ms = (token_times[0] - started) * 1000.0 if token_times else None
     if output_tokens > 1 and ttft_ms is not None:
         tpot_ms = (total_ms - ttft_ms) / (output_tokens - 1)
@@ -103,6 +115,7 @@ async def send_openai_streaming_request(
     return {
         "ttft_ms": ttft_ms,
         "tpot_ms": tpot_ms,
+        "prompt_tokens": usage_prompt_tokens,
         "output_tokens": output_tokens,
         "total_ms": total_ms,
         "text": "".join(chunks),
@@ -114,22 +127,32 @@ async def _run_one(
     config: BenchmarkConfig,
     sender: Sender,
     *,
-    delay_s: float,
+    scheduled_offset_ms: float,
+    run_started: float,
 ) -> tuple[dict[str, Any], RequestMeasurement]:
+    delay_s = scheduled_offset_ms / 1000.0
     if delay_s > 0:
         await asyncio.sleep(delay_s)
+    dispatch_offset_ms = (perf_counter() - run_started) * 1000.0
+    dispatch_lag_ms = max(0.0, dispatch_offset_ms - scheduled_offset_ms)
 
     try:
         raw = await sender(record.body)
         measurement = RequestMeasurement(
             ttft_ms=raw.get("ttft_ms"),
             tpot_ms=raw.get("tpot_ms"),
+            prompt_tokens=int(raw["prompt_tokens"]) if raw.get("prompt_tokens") is not None else None,
             output_tokens=int(raw.get("output_tokens") or 0),
+            dispatch_lag_ms=dispatch_lag_ms,
         )
         error = None
     except Exception as exc:
         raw = {}
-        measurement = RequestMeasurement(error=str(exc), output_tokens=0)
+        measurement = RequestMeasurement(
+            error=str(exc),
+            output_tokens=0,
+            dispatch_lag_ms=dispatch_lag_ms,
+        )
         error = str(exc)
 
     score = request_score(measurement, config.score_config)
@@ -137,8 +160,12 @@ async def _run_one(
         "request_id": record.request_id,
         "timestamp_ms": record.timestamp_ms,
         "workload_type": record.workload_type,
+        "scheduled_offset_ms": scheduled_offset_ms,
+        "dispatch_offset_ms": dispatch_offset_ms,
+        "dispatch_lag_ms": dispatch_lag_ms,
         "ttft_ms": measurement.ttft_ms,
         "tpot_ms": measurement.tpot_ms,
+        "prompt_tokens": measurement.prompt_tokens,
         "output_tokens": measurement.output_tokens,
         "score": score,
         "error": error,
@@ -158,7 +185,15 @@ async def run_benchmark(
     respect_timestamps: bool = True,
 ) -> BenchmarkResult:
     if sender is None:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(config.request_timeout_s)) as client:
+        connection_limit = max(1, len(records))
+        limits = httpx.Limits(
+            max_connections=connection_limit,
+            max_keepalive_connections=min(20, connection_limit),
+        )
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(config.request_timeout_s),
+            limits=limits,
+        ) as client:
             sender = lambda body: send_openai_streaming_request(
                 body,
                 base_url=config.base_url,
@@ -173,15 +208,27 @@ async def run_benchmark(
             )
 
     first_timestamp = min((record.timestamp_ms for record in records), default=0)
+    run_started = perf_counter()
     tasks = []
     for record in records:
-        delay_s = ((record.timestamp_ms - first_timestamp) / 1000.0) if respect_timestamps else 0.0
-        tasks.append(_run_one(record, config, sender, delay_s=delay_s))
+        scheduled_offset_ms = float(record.timestamp_ms - first_timestamp) if respect_timestamps else 0.0
+        tasks.append(
+            _run_one(
+                record,
+                config,
+                sender,
+                scheduled_offset_ms=scheduled_offset_ms,
+                run_started=run_started,
+            )
+        )
 
     pairs = await asyncio.gather(*tasks)
+    makespan_ms = (perf_counter() - run_started) * 1000.0
     rows = [row for row, _measurement in pairs]
     measurements = [measurement for _row, measurement in pairs]
     summary = summarize_scores(measurements, config.score_config)
+    summary["makespan_ms"] = makespan_ms
+    summary["measurement_version"] = "h0.1"
     return BenchmarkResult(requests=rows, summary=summary)
 
 

@@ -1,5 +1,6 @@
 from pathlib import Path
 import unittest
+from unittest.mock import call, patch
 
 from inference_opt.serving import sweep
 from inference_opt.serving.sweep import (
@@ -8,9 +9,16 @@ from inference_opt.serving.sweep import (
     build_run_commands,
     render_compose_override,
 )
+from scripts import run_serving_sweep
 
 
 class ServingSweepTest(unittest.TestCase):
+    def test_cli_defaults_to_diverse_content_trace(self):
+        with patch("sys.argv", ["run_serving_sweep.py"]):
+            args = run_serving_sweep.parse_args()
+
+        self.assertEqual(args.trace, "data/trace-round1-diverse-content.jsonl")
+
     def test_baseline_candidate_keeps_only_baseline_args(self):
         candidates = sweep.build_baseline_candidates()
 
@@ -71,7 +79,22 @@ class ServingSweepTest(unittest.TestCase):
 
         self.assertEqual(commands[0], ["docker-compose", "-f", "docker-compose.local.yml", "-f", "results/sweeps/_overrides/kv-fp8-seqs-64/compose.override.yml", "down"])
         self.assertEqual(commands[1], ["docker-compose", "-f", "docker-compose.local.yml", "-f", "results/sweeps/_overrides/kv-fp8-seqs-64/compose.override.yml", "up", "-d", "model"])
-        self.assertEqual(commands[2], ["python", "scripts/check_server_health.py"])
+        self.assertEqual(
+            commands[2],
+            [
+                "python",
+                "scripts/check_server_health.py",
+                "--wait",
+                "--startup-grace-s",
+                "60.0",
+                "--poll-interval-s",
+                "5.0",
+                "--total-timeout-s",
+                "300.0",
+                "--stable-successes",
+                "2",
+            ],
+        )
         self.assertEqual(
             commands[3],
             [
@@ -86,6 +109,23 @@ class ServingSweepTest(unittest.TestCase):
             ],
         )
         self.assertEqual(commands[4], ["docker-compose", "-f", "docker-compose.local.yml", "-f", "results/sweeps/_overrides/kv-fp8-seqs-64/compose.override.yml", "down"])
+
+    def test_run_commands_invokes_one_stable_health_wait(self):
+        commands = [["down"], ["up"], ["health"], ["benchmark"], ["cleanup"]]
+
+        with patch.object(sweep.subprocess, "run") as run:
+            sweep.run_commands(commands)
+
+        self.assertEqual(
+            run.call_args_list,
+            [
+                call(commands[0], check=False),
+                call(commands[1], check=True),
+                call(commands[2], check=True),
+                call(commands[3], check=True),
+                call(commands[4], check=False),
+            ],
+        )
 
 
 if __name__ == "__main__":

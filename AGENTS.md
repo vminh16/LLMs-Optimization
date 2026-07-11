@@ -195,3 +195,5 @@ Use the public **GPQA Diamond** dataset (`Idavidrein/gpqa` on Hugging Face, gate
 
 - 2026-07-09 — Organizer baseline `docker-compose.yml` submitted and accepted; leaderboard score approximately 14, validating the baseline serving contract. Validated by user.
 - 2026-07-09 — L4 relative baseline locked from three 120-request runs; local GPQA reference set to 43/120 while official accuracy and latency constants remain unchanged. Validated by user.
+- 2026-07-11 — `trace-round1-diverse-content.jsonl` selected as the primary local performance trace; legacy results remain historical and prefix-sensitive conclusions require organizer confirmation. Validated by user.
+- 2026-07-11 — H0.1 benchmark contract requires trace-sized HTTP concurrency, exact streaming usage, dispatch telemetry, trace identity, and quiet stable readiness before replay. Validated by user.

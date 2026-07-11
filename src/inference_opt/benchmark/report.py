@@ -8,12 +8,19 @@ import re
 
 
 METRIC_KEYS = (
+    "erc",
     "ttft_p50_ms",
     "ttft_p95_ms",
     "tbt_median_ms",
+    "makespan_ms",
+    "dispatch_lag_p95_ms",
+    "prompt_tokens_p50",
+    "prompt_tokens_p95",
     "ers",
     "final_score",
 )
+
+IDENTITY_KEYS = ("measurement_version", "trace_sha256")
 
 
 def load_run_summaries(root: Path) -> list[dict[str, Any]]:
@@ -37,6 +44,15 @@ def _metric_summary(values: list[float]) -> dict[str, float | int]:
     }
 
 
+def _identity_issues(runs: list[dict[str, Any]]) -> list[str]:
+    issues = []
+    for key in IDENTITY_KEYS:
+        values = sorted({str(run[key]) if run.get(key) is not None else "<missing>" for run in runs})
+        if len(values) > 1:
+            issues.append(f"mixed {key} values: {', '.join(values)}")
+    return issues
+
+
 def summarize_run_group(
     root: Path,
     *,
@@ -57,6 +73,8 @@ def summarize_run_group(
             issues.append(f"{run_id} has failed_count={failed_count}")
         if total_count != expected_total_count:
             issues.append(f"{run_id} has total_count={total_count}, expected {expected_total_count}")
+
+    issues.extend(_identity_issues(runs))
 
     metrics = {}
     for key in METRIC_KEYS:
@@ -102,6 +120,7 @@ def summarize_candidate_groups(
         summary["blocking_issues"] = [
             issue for issue in summary["blocking_issues"] if any(run_id in issue for run_id in run_ids)
         ]
+        summary["blocking_issues"].extend(_identity_issues(group_runs))
         if len(group_runs) < min_runs:
             summary["blocking_issues"].insert(0, f"expected at least {min_runs} runs, found {len(group_runs)}")
 

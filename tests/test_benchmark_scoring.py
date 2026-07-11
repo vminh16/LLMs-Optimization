@@ -82,6 +82,31 @@ class BenchmarkScoringTest(unittest.TestCase):
         self.assertAlmostEqual(summary["ers"], 100.0 * summary["effective_request_score"])
         self.assertAlmostEqual(summary["final_score"], summary["ers"])
 
+    def test_summarize_scores_reports_h01_observability_fields(self):
+        config = ScoreConfig()
+        measurements = [
+            RequestMeasurement(
+                ttft_ms=100.0,
+                tpot_ms=20.0,
+                prompt_tokens=100,
+                output_tokens=2,
+                dispatch_lag_ms=1.0,
+            ),
+            RequestMeasurement(
+                prompt_tokens=200,
+                output_tokens=0,
+                error="timeout",
+                dispatch_lag_ms=7.0,
+            ),
+        ]
+
+        summary = summarize_scores(measurements, config)
+
+        self.assertEqual(summary["erc"], 0.5)
+        self.assertEqual(summary["prompt_tokens_p50"], 100)
+        self.assertEqual(summary["prompt_tokens_p95"], 200)
+        self.assertEqual(summary["dispatch_lag_p95_ms"], 7.0)
+
     def test_accuracy_multiplier_matches_project_gate(self):
         self.assertEqual(accuracy_multiplier(accuracy=0.30), 1.0)
         self.assertAlmostEqual(accuracy_multiplier(accuracy=0.27), 0.5)

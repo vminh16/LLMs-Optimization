@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import subprocess
-import time
 
 
 BASE_COMMAND_ARGS = (
@@ -91,12 +90,28 @@ def build_run_commands(
     output_root: Path,
     run_id: str,
     python_executable: str,
+    startup_grace_s: float = 60.0,
+    poll_interval_s: float = 5.0,
+    total_timeout_s: float = 300.0,
+    stable_successes: int = 2,
 ) -> list[list[str]]:
     compose_args = ["docker-compose", "-f", _path(base_compose), "-f", _path(override_compose)]
     return [
         compose_args + ["down"],
         compose_args + ["up", "-d", "model"],
-        [python_executable, "scripts/check_server_health.py"],
+        [
+            python_executable,
+            "scripts/check_server_health.py",
+            "--wait",
+            "--startup-grace-s",
+            str(startup_grace_s),
+            "--poll-interval-s",
+            str(poll_interval_s),
+            "--total-timeout-s",
+            str(total_timeout_s),
+            "--stable-successes",
+            str(stable_successes),
+        ],
         [
             python_executable,
             "scripts/run_trace_benchmark.py",
@@ -111,22 +126,11 @@ def build_run_commands(
     ]
 
 
-def run_commands(
-    commands: list[list[str]],
-    *,
-    health_retries: int,
-    health_wait_s: float,
-) -> None:
+def run_commands(commands: list[list[str]]) -> None:
     subprocess.run(commands[0], check=False)
     subprocess.run(commands[1], check=True)
     try:
-        for attempt in range(1, health_retries + 1):
-            health = subprocess.run(commands[2], check=False)
-            if health.returncode == 0:
-                break
-            if attempt == health_retries:
-                raise subprocess.CalledProcessError(health.returncode, commands[2])
-            time.sleep(health_wait_s)
+        subprocess.run(commands[2], check=True)
         subprocess.run(commands[3], check=True)
     finally:
         subprocess.run(commands[4], check=False)

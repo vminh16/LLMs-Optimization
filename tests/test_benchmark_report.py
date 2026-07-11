@@ -13,6 +13,13 @@ def write_summary(root: Path, run_id: str, **overrides):
         "ttft_p50_ms": 1000.0,
         "ttft_p95_ms": 3000.0,
         "tbt_median_ms": 40.0,
+        "erc": 0.5,
+        "makespan_ms": 10000.0,
+        "dispatch_lag_p95_ms": 5.0,
+        "prompt_tokens_p50": 1000,
+        "prompt_tokens_p95": 2000,
+        "measurement_version": "h0.1",
+        "trace_sha256": "same-trace",
         "ers": 10.0,
         "final_score": 10.0,
     }
@@ -39,6 +46,9 @@ class BenchmarkReportTest(unittest.TestCase):
         self.assertEqual(result["metrics"]["ttft_p50_ms"]["median"], 1000.0)
         self.assertEqual(result["metrics"]["ttft_p50_ms"]["mad"], 100.0)
         self.assertEqual(result["metrics"]["tbt_median_ms"]["median"], 40.0)
+        self.assertEqual(result["metrics"]["erc"]["median"], 0.5)
+        self.assertEqual(result["metrics"]["makespan_ms"]["median"], 10000.0)
+        self.assertEqual(result["metrics"]["dispatch_lag_p95_ms"]["median"], 5.0)
         self.assertEqual(result["metrics"]["ers"]["median"], 10.0)
 
     def test_summarize_run_group_blocks_when_runs_are_incomplete(self):
@@ -52,6 +62,17 @@ class BenchmarkReportTest(unittest.TestCase):
         self.assertFalse(result["ready_for_comparison"])
         self.assertIn("expected at least 3 runs, found 2", result["blocking_issues"])
         self.assertIn("baseline-cold-02 has failed_count=1", result["blocking_issues"])
+
+    def test_summarize_run_group_blocks_mixed_trace_hashes(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write_summary(root, "baseline-cold-01", trace_sha256="trace-a")
+            write_summary(root, "baseline-cold-02", trace_sha256="trace-b")
+
+            result = report.summarize_run_group(root, min_runs=2, expected_total_count=120)
+
+        self.assertFalse(result["ready_for_comparison"])
+        self.assertIn("mixed trace_sha256 values", result["blocking_issues"][0])
 
     def test_summarize_candidate_groups_keeps_candidates_separate(self):
         with TemporaryDirectory() as tmp:

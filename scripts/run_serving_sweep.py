@@ -23,11 +23,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--fixed-max-num-seqs", type=int, default=64)
     parser.add_argument("--repeat", type=int, default=1)
     parser.add_argument("--base-compose", default="docker-compose.local.yml")
-    parser.add_argument("--trace", default="data/trace-round1.jsonl")
+    parser.add_argument("--trace", default="data/trace-round1-diverse-content.jsonl")
     parser.add_argument("--output-root", default="results/trace-sweeps")
     parser.add_argument("--override-root", default="results/sweeps/_overrides")
-    parser.add_argument("--health-retries", type=int, default=60)
-    parser.add_argument("--health-wait-s", type=float, default=5.0)
+    parser.add_argument("--startup-grace-s", type=float, default=60.0)
+    parser.add_argument("--poll-interval-s", type=float, default=5.0)
+    parser.add_argument("--total-timeout-s", type=float, default=300.0)
+    parser.add_argument("--stable-successes", type=int, default=2)
     parser.add_argument("--python", default=sys.executable)
     parser.add_argument("--dry-run", action="store_true")
     return parser.parse_args()
@@ -56,17 +58,17 @@ def main() -> int:
                 output_root=Path(args.output_root),
                 run_id=run_id,
                 python_executable=args.python,
+                startup_grace_s=args.startup_grace_s,
+                poll_interval_s=args.poll_interval_s,
+                total_timeout_s=args.total_timeout_s,
+                stable_successes=args.stable_successes,
             )
             if args.dry_run:
                 for command in commands:
                     print(subprocess.list2cmdline(command))
             else:
                 print(f"running {run_id}")
-                run_commands(
-                    commands,
-                    health_retries=args.health_retries,
-                    health_wait_s=args.health_wait_s,
-                )
+                run_commands(commands)
     return 0
 
 

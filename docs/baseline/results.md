@@ -1,12 +1,20 @@
 # Locked Baseline Results
 
+## H0.1 Transition
+
+New performance experiments use `data/trace-round1-diverse-content.jsonl` and
+the H0.1 measurement contract. The locked results below used the legacy trace
+and pre-H0.1 client behavior, so they remain historical evidence and must not
+be compared numerically with new candidates. Lock a new three-run cold
+baseline under `results/trace-baseline-h01` before Experiment 1.
+
 ## Baseline Identity
 
 - Organizer compose: accepted, leaderboard score approximately `14`.
 - Local GPU: NVIDIA L4.
 - Serving image: `vllm/vllm-openai:v0.22.1`.
 - Model: `Qwen/Qwen3.5-2B`, default Hugging Face revision.
-- Performance trace: `data/trace-round1.jsonl`, 120 requests.
+- Legacy performance trace: `data/trace-round1.jsonl`, 120 requests.
 - Quality trace: public GPQA Diamond sample, 120 questions, seed 42.
 
 The organizer score is the official reference. L4 results are relative

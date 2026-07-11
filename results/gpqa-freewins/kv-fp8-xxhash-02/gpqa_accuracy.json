@@ -1,0 +1,732 @@
+{
+  "accuracy": 0.35833333333333334,
+  "accuracy_delta": 0.0,
+  "accuracy_multiplier": 1.0,
+  "answered_count": 120,
+  "baseline_accuracy": 0.35833333333333334,
+  "correct_count": 43,
+  "details": [
+    {
+      "correct_label": "A",
+      "is_correct": false,
+      "prediction": "B",
+      "request_id": 0
+    },
+    {
+      "correct_label": "A",
+      "is_correct": false,
+      "prediction": "B",
+      "request_id": 1
+    },
+    {
+      "correct_label": "B",
+      "is_correct": false,
+      "prediction": "D",
+      "request_id": 2
+    },
+    {
+      "correct_label": "D",
+      "is_correct": true,
+      "prediction": "D",
+      "request_id": 3
+    },
+    {
+      "correct_label": "C",
+      "is_correct": false,
+      "prediction": "B",
+      "request_id": 4
+    },
+    {
+      "correct_label": "D",
+      "is_correct": true,
+      "prediction": "D",
+      "request_id": 5
+    },
+    {
+      "correct_label": "D",
+      "is_correct": false,
+      "prediction": "B",
+      "request_id": 6
+    },
+    {
+      "correct_label": "D",
+      "is_correct": true,
+      "prediction": "D",
+      "request_id": 7
+    },
+    {
+      "correct_label": "D",
+      "is_correct": true,
+      "prediction": "D",
+      "request_id": 8
+    },
+    {
+      "correct_label": "B",
+      "is_correct": true,
+      "prediction": "B",
+      "request_id": 9
+    },
+    {
+      "correct_label": "B",
+      "is_correct": false,
+      "prediction": "C",
+      "request_id": 10
+    },
+    {
+      "correct_label": "D",
+      "is_correct": false,
+      "prediction": "B",
+      "request_id": 11
+    },
+    {
+      "correct_label": "A",
+      "is_correct": true,
+      "prediction": "A",
+      "request_id": 12
+    },
+    {
+      "correct_label": "C",
+      "is_correct": false,
+      "prediction": "D",
+      "request_id": 13
+    },
+    {
+      "correct_label": "D",
+      "is_correct": true,
+      "prediction": "D",
+      "request_id": 14
+    },
+    {
+      "correct_label": "A",
+      "is_correct": false,
+      "prediction": "D",
+      "request_id": 15
+    },
+    {
+      "correct_label": "A",
+      "is_correct": false,
+      "prediction": "D",
+      "request_id": 16
+    },
+    {
+      "correct_label": "D",
+      "is_correct": false,
+      "prediction": "A",
+      "request_id": 17
+    },
+    {
+      "correct_label": "C",
+      "is_correct": false,
+      "prediction": "B",
+      "request_id": 18
+    },
+    {
+      "correct_label": "C",
+      "is_correct": false,
+      "prediction": "A",
+      "request_id": 19
+    },
+    {
+      "correct_label": "B",
+      "is_correct": false,
+      "prediction": "D",
+      "request_id": 20
+    },
+    {
+      "correct_label": "C",
+      "is_correct": false,
+      "prediction": "B",
+      "request_id": 21
+    },
+    {
+      "correct_label": "A",
+      "is_correct": false,
+      "prediction": "D",
+      "request_id": 22
+    },
+    {
+      "correct_label": "D",
+      "is_correct": true,
+      "prediction": "D",
+      "request_id": 23
+    },
+    {
+      "correct_label": "B",
+      "is_correct": false,
+      "prediction": "D",
+      "request_id": 24
+    },
+    {
+      "correct_label": "A",
+      "is_correct": false,
+      "prediction": "B",
+      "request_id": 25
+    },
+    {
+      "correct_label": "D",
+      "is_correct": false,
+      "prediction": "C",
+      "request_id": 26
+    },
+    {
+      "correct_label": "C",
+      "is_correct": false,
+      "prediction": "B",
+      "request_id": 27
+    },
+    {
+      "correct_label": "A",
+      "is_correct": false,
+      "prediction": "B",
+      "request_id": 28
+    },
+    {
+      "correct_label": "D",
+      "is_correct": true,
+      "prediction": "D",
+      "request_id": 29
+    },
+    {
+      "correct_label": "D",
+      "is_correct": true,
+      "prediction": "D",
+      "request_id": 30
+    },
+    {
+      "correct_label": "C",
+      "is_correct": true,
+      "prediction": "C",
+      "request_id": 31
+    },
+    {
+      "correct_label": "A",
+      "is_correct": false,
+      "prediction": "B",
+      "request_id": 32
+    },
+    {
+      "correct_label": "D",
+      "is_correct": true,
+      "prediction": "D",
+      "request_id": 33
+    },
+    {
+      "correct_label": "B",
+      "is_correct": false,
+      "prediction": "D",
+      "request_id": 34
+    },
+    {
+      "correct_label": "D",
+      "is_correct": false,
+      "prediction": "B",
+      "request_id": 35
+    },
+    {
+      "correct_label": "C",
+      "is_correct": false,
+      "prediction": "A",
+      "request_id": 36
+    },
+    {
+      "correct_label": "A",
+      "is_correct": false,
+      "prediction": "D",
+      "request_id": 37
+    },
+    {
+      "correct_label": "C",
+      "is_correct": false,
+      "prediction": "D",
+      "request_id": 38
+    },
+    {
+      "correct_label": "B",
+      "is_correct": true,
+      "prediction": "B",
+      "request_id": 39
+    },
+    {
+      "correct_label": "B",
+      "is_correct": false,
+      "prediction": "C",
+      "request_id": 40
+    },
+    {
+      "correct_label": "B",
+      "is_correct": false,
+      "prediction": "D",
+      "request_id": 41
+    },
+    {
+      "correct_label": "C",
+      "is_correct": false,
+      "prediction": "D",
+      "request_id": 42
+    },
+    {
+      "correct_label": "C",
+      "is_correct": false,
+      "prediction": "D",
+      "request_id": 43
+    },
+    {
+      "correct_label": "B",
+      "is_correct": false,
+      "prediction": "D",
+      "request_id": 44
+    },
+    {
+      "correct_label": "B",
+      "is_correct": false,
+      "prediction": "D",
+      "request_id": 45
+    },
+    {
+      "correct_label": "B",
+      "is_correct": false,
+      "prediction": "C",
+      "request_id": 46
+    },
+    {
+      "correct_label": "A",
+      "is_correct": true,
+      "prediction": "A",
+      "request_id": 47
+    },
+    {
+      "correct_label": "A",
+      "is_correct": false,
+      "prediction": "D",
+      "request_id": 48
+    },
+    {
+      "correct_label": "A",
+      "is_correct": true,
+      "prediction": "A",
+      "request_id": 49
+    },
+    {
+      "correct_label": "C",
+      "is_correct": false,
+      "prediction": "D",
+      "request_id": 50
+    },
+    {
+      "correct_label": "D",
+      "is_correct": false,
+      "prediction": "A",
+      "request_id": 51
+    },
+    {
+      "correct_label": "A",
+      "is_correct": true,
+      "prediction": "A",
+      "request_id": 52
+    },
+    {
+      "correct_label": "B",
+      "is_correct": false,
+      "prediction": "D",
+      "request_id": 53
+    },
+    {
+      "correct_label": "D",
+      "is_correct": true,
+      "prediction": "D",
+      "request_id": 54
+    },
+    {
+      "correct_label": "A",
+      "is_correct": false,
+      "prediction": "D",
+      "request_id": 55
+    },
+    {
+      "correct_label": "C",
+      "is_correct": false,
+      "prediction": "B",
+      "request_id": 56
+    },
+    {
+      "correct_label": "B",
+      "is_correct": false,
+      "prediction": "D",
+      "request_id": 57
+    },
+    {
+      "correct_label": "B",
+      "is_correct": false,
+      "prediction": "D",
+      "request_id": 58
+    },
+    {
+      "correct_label": "A",
+      "is_correct": false,
+      "prediction": "D",
+      "request_id": 59
+    },
+    {
+      "correct_label": "A",
+      "is_correct": false,
+      "prediction": "D",
+      "request_id": 60
+    },
+    {
+      "correct_label": "A",
+      "is_correct": false,
+      "prediction": "D",
+      "request_id": 61
+    },
+    {
+      "correct_label": "C",
+      "is_correct": false,
+      "prediction": "D",
+      "request_id": 62
+    },
+    {
+      "correct_label": "D",
+      "is_correct": false,
+      "prediction": "B",
+      "request_id": 63
+    },
+    {
+      "correct_label": "D",
+      "is_correct": true,
+      "prediction": "D",
+      "request_id": 64
+    },
+    {
+      "correct_label": "B",
+      "is_correct": true,
+      "prediction": "B",
+      "request_id": 65
+    },
+    {
+      "correct_label": "A",
+      "is_correct": false,
+      "prediction": "D",
+      "request_id": 66
+    },
+    {
+      "correct_label": "D",
+      "is_correct": true,
+      "prediction": "D",
+      "request_id": 67
+    },
+    {
+      "correct_label": "C",
+      "is_correct": false,
+      "prediction": "D",
+      "request_id": 68
+    },
+    {
+      "correct_label": "D",
+      "is_correct": true,
+      "prediction": "D",
+      "request_id": 69
+    },
+    {
+      "correct_label": "A",
+      "is_correct": false,
+      "prediction": "D",
+      "request_id": 70
+    },
+    {
+      "correct_label": "D",
+      "is_correct": false,
+      "prediction": "C",
+      "request_id": 71
+    },
+    {
+      "correct_label": "A",
+      "is_correct": true,
+      "prediction": "A",
+      "request_id": 72
+    },
+    {
+      "correct_label": "A",
+      "is_correct": false,
+      "prediction": "D",
+      "request_id": 73
+    },
+    {
+      "correct_label": "B",
+      "is_correct": false,
+      "prediction": "D",
+      "request_id": 74
+    },
+    {
+      "correct_label": "D",
+      "is_correct": true,
+      "prediction": "D",
+      "request_id": 75
+    },
+    {
+      "correct_label": "C",
+      "is_correct": false,
+      "prediction": "B",
+      "request_id": 76
+    },
+    {
+      "correct_label": "B",
+      "is_correct": false,
+      "prediction": "D",
+      "request_id": 77
+    },
+    {
+      "correct_label": "D",
+      "is_correct": true,
+      "prediction": "D",
+      "request_id": 78
+    },
+    {
+      "correct_label": "B",
+      "is_correct": true,
+      "prediction": "B",
+      "request_id": 79
+    },
+    {
+      "correct_label": "B",
+      "is_correct": false,
+      "prediction": "D",
+      "request_id": 80
+    },
+    {
+      "correct_label": "A",
+      "is_correct": false,
+      "prediction": "B",
+      "request_id": 81
+    },
+    {
+      "correct_label": "B",
+      "is_correct": false,
+      "prediction": "D",
+      "request_id": 82
+    },
+    {
+      "correct_label": "B",
+      "is_correct": false,
+      "prediction": "C",
+      "request_id": 83
+    },
+    {
+      "correct_label": "C",
+      "is_correct": false,
+      "prediction": "D",
+      "request_id": 84
+    },
+    {
+      "correct_label": "C",
+      "is_correct": false,
+      "prediction": "D",
+      "request_id": 85
+    },
+    {
+      "correct_label": "D",
+      "is_correct": true,
+      "prediction": "D",
+      "request_id": 86
+    },
+    {
+      "correct_label": "B",
+      "is_correct": false,
+      "prediction": "D",
+      "request_id": 87
+    },
+    {
+      "correct_label": "B",
+      "is_correct": true,
+      "prediction": "B",
+      "request_id": 88
+    },
+    {
+      "correct_label": "D",
+      "is_correct": true,
+      "prediction": "D",
+      "request_id": 89
+    },
+    {
+      "correct_label": "D",
+      "is_correct": true,
+      "prediction": "D",
+      "request_id": 90
+    },
+    {
+      "correct_label": "D",
+      "is_correct": false,
+      "prediction": "B",
+      "request_id": 91
+    },
+    {
+      "correct_label": "C",
+      "is_correct": true,
+      "prediction": "C",
+      "request_id": 92
+    },
+    {
+      "correct_label": "D",
+      "is_correct": true,
+      "prediction": "D",
+      "request_id": 93
+    },
+    {
+      "correct_label": "C",
+      "is_correct": false,
+      "prediction": "B",
+      "request_id": 94
+    },
+    {
+      "correct_label": "D",
+      "is_correct": true,
+      "prediction": "D",
+      "request_id": 95
+    },
+    {
+      "correct_label": "C",
+      "is_correct": false,
+      "prediction": "D",
+      "request_id": 96
+    },
+    {
+      "correct_label": "B",
+      "is_correct": true,
+      "prediction": "B",
+      "request_id": 97
+    },
+    {
+      "correct_label": "C",
+      "is_correct": true,
+      "prediction": "C",
+      "request_id": 98
+    },
+    {
+      "correct_label": "A",
+      "is_correct": false,
+      "prediction": "B",
+      "request_id": 99
+    },
+    {
+      "correct_label": "A",
+      "is_correct": true,
+      "prediction": "A",
+      "request_id": 100
+    },
+    {
+      "correct_label": "B",
+      "is_correct": false,
+      "prediction": "A",
+      "request_id": 101
+    },
+    {
+      "correct_label": "D",
+      "is_correct": true,
+      "prediction": "D",
+      "request_id": 102
+    },
+    {
+      "correct_label": "B",
+      "is_correct": false,
+      "prediction": "D",
+      "request_id": 103
+    },
+    {
+      "correct_label": "B",
+      "is_correct": true,
+      "prediction": "B",
+      "request_id": 104
+    },
+    {
+      "correct_label": "B",
+      "is_correct": true,
+      "prediction": "B",
+      "request_id": 105
+    },
+    {
+      "correct_label": "A",
+      "is_correct": false,
+      "prediction": "B",
+      "request_id": 106
+    },
+    {
+      "correct_label": "B",
+      "is_correct": false,
+      "prediction": "D",
+      "request_id": 107
+    },
+    {
+      "correct_label": "C",
+      "is_correct": false,
+      "prediction": "B",
+      "request_id": 108
+    },
+    {
+      "correct_label": "C",
+      "is_correct": true,
+      "prediction": "C",
+      "request_id": 109
+    },
+    {
+      "correct_label": "D",
+      "is_correct": true,
+      "prediction": "D",
+      "request_id": 110
+    },
+    {
+      "correct_label": "C",
+      "is_correct": false,
+      "prediction": "A",
+      "request_id": 111
+    },
+    {
+      "correct_label": "B",
+      "is_correct": false,
+      "prediction": "D",
+      "request_id": 112
+    },
+    {
+      "correct_label": "C",
+      "is_correct": false,
+      "prediction": "B",
+      "request_id": 113
+    },
+    {
+      "correct_label": "C",
+      "is_correct": false,
+      "prediction": "B",
+      "request_id": 114
+    },
+    {
+      "correct_label": "A",
+      "is_correct": true,
+      "prediction": "A",
+      "request_id": 115
+    },
+    {
+      "correct_label": "C",
+      "is_correct": false,
+      "prediction": "B",
+      "request_id": 116
+    },
+    {
+      "correct_label": "A",
+      "is_correct": false,
+      "prediction": "D",
+      "request_id": 117
+    },
+    {
+      "correct_label": "C",
+      "is_correct": true,
+      "prediction": "C",
+      "request_id": 118
+    },
+    {
+      "correct_label": "D",
+      "is_correct": true,
+      "prediction": "D",
+      "request_id": 119
+    }
+  ],
+  "missing_count": 0,
+  "question_count": 120
+}

@@ -49,7 +49,7 @@ Then run the same trace benchmark:
 
 ```powershell
 python scripts/check_server_health.py
-python scripts/run_trace_benchmark.py --trace data\trace-round1.jsonl --output-root results\trace-freewins --run-id prefix-xxhash-01
+python scripts/run_trace_benchmark.py --trace data\trace-round1-diverse-content.jsonl --output-root results\trace-freewins --run-id prefix-xxhash-01
 ```
 
 For FP8 KV cache, also run GPQA before accepting the candidate:
@@ -80,7 +80,7 @@ python scripts/run_serving_sweep.py --mode seqs --seqs 32 64 96 128 --dry-run
 Rebuild the H0 baseline with cold repeats before comparing candidates:
 
 ```powershell
-python scripts/run_serving_sweep.py --mode baseline --repeat 3 --output-root results\trace-baseline-h0
+python scripts/run_serving_sweep.py --mode baseline --repeat 3 --output-root results\trace-baseline-h01
 ```
 
 Run the KV FP8 sequence-limit sweep:
@@ -106,3 +106,7 @@ benchmark, then stops the server. The runner also calls `docker-compose down`
 before each start so a repeat cannot reuse an already-warm server. Changing
 vLLM serving flags still requires a server restart; the runner only removes the
 manual loop.
+
+H0.1 uses the diverse-content trace by default and records its SHA-256 in each
+summary. The trace is prefix-heavy, so prefix-cache candidates still require
+organizer confirmation even when they win locally.
