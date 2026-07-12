@@ -1,6 +1,6 @@
 {
   "base_compose_sha256": "f415754136949b903e74843f0cbc284ae313dab4b8c7d9e88ade2f43bc8d76c3",
-  "candidate": "renderer-2",
+  "candidate": "performance-throughput",
   "command_args": [
     "--model=/model #Don't change this to vllm-server",
     "--served-model-name=Qwen3.5-2B #Don't change this to vllm-server",
@@ -10,17 +10,16 @@
     "--gpu-memory-utilization=0.95",
     "--tensor-parallel-size=1",
     "--enable-prefix-caching",
-    "--mm-processor-cache-gb=0",
-    "--renderer-num-workers=2"
+    "--performance-mode=throughput"
   ],
-  "comparison_control": "mm-cache-off",
-  "completed_at": "2026-07-12T06:14:41.757639+00:00",
-  "fingerprint": "b1421e0b042cca5d1260f862d191cefcfd19219c598bbb787808d00b3adf1de9",
+  "comparison_control": "baseline",
+  "completed_at": "2026-07-12T04:30:41.492240+00:00",
+  "fingerprint": "ed70fe3971d282ea1ccc7096099d1c0a747db0f242c8b4f070830744d587ff83",
   "image": "vllm/vllm-openai:v0.22.1",
   "measurement_version": "h0.1",
   "requires_gpqa": false,
-  "run_id": "renderer-2-01",
+  "run_id": "performance-throughput-02",
   "status": "completed",
   "trace_sha256": "fcf8992f7a0618f3f7252f706e7999d97bc55380c419a2a03823985f45a8d67f",
-  "updated_at": "2026-07-12T06:14:41.757684+00:00"
+  "updated_at": "2026-07-12T04:30:41.492280+00:00"
 }

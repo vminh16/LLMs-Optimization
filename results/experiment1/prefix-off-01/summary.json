@@ -1,0 +1,23 @@
+{
+  "dispatch_lag_p95_ms": 7.596810999893933,
+  "effective_request_score": 0.0,
+  "erc": 0.0,
+  "error_count": 52,
+  "ers": 0.0,
+  "failed_count": 52,
+  "final_score": 0.0,
+  "makespan_ms": 152397.83354800055,
+  "measurement_version": "h0.1",
+  "passed_slo": 0,
+  "prompt_tokens_p50": 17481.0,
+  "prompt_tokens_p95": 23803.0,
+  "request_count": 120,
+  "score_100x_ers": 0.0,
+  "success_count": 68,
+  "tbt_median_ms": 232.75934402512644,
+  "total_count": 120,
+  "trace_path": "data/trace-round1-diverse-content.jsonl",
+  "trace_sha256": "fcf8992f7a0618f3f7252f706e7999d97bc55380c419a2a03823985f45a8d67f",
+  "ttft_p50_ms": 48794.98092100039,
+  "ttft_p95_ms": 112241.95400500047
+}
