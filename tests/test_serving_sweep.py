@@ -58,23 +58,52 @@ class ServingSweepTest(unittest.TestCase):
             [candidate.name for candidate in candidates],
             [
                 "language-only",
-                "renderer-2",
                 "performance-interactivity",
                 "performance-throughput",
                 "prefix-off",
+                "disable-access-log",
+                "disable-log-stats",
+                "mm-cache-off",
+                "renderer-2",
             ],
         )
         expected_flags = {
             "language-only": "--language-model-only",
-            "renderer-2": "--renderer-num-workers=2",
             "performance-interactivity": "--performance-mode=interactivity",
             "performance-throughput": "--performance-mode=throughput",
             "prefix-off": "--no-enable-prefix-caching",
+            "disable-access-log": "--disable-uvicorn-access-log",
+            "disable-log-stats": "--disable-log-stats",
+            "mm-cache-off": "--mm-processor-cache-gb=0",
+            "renderer-2": "--renderer-num-workers=2",
         }
         for candidate in candidates:
             self.assertIn(expected_flags[candidate.name], candidate.command_args)
             self.assertNotIn("--kv-cache-dtype=fp8", candidate.command_args)
             self.assertNotIn("--max-num-seqs=64", candidate.command_args)
+
+    def test_renderer_uses_mm_cache_off_control(self):
+        renderer = sweep.select_candidates(["renderer-2"])[0]
+
+        self.assertEqual(renderer.comparison_control, "mm-cache-off")
+        self.assertIn("--mm-processor-cache-gb=0", renderer.command_args)
+        self.assertIn("--renderer-num-workers=2", renderer.command_args)
+
+    def test_non_renderer_candidates_compare_with_locked_baseline(self):
+        candidates = sweep.build_experiment1_candidates()
+
+        for candidate in candidates:
+            if candidate.name != "renderer-2":
+                self.assertEqual(candidate.comparison_control, "baseline")
+
+    def test_prefix_off_requires_gpqa_before_promotion(self):
+        candidate = sweep.select_candidates(["prefix-off"])[0]
+
+        self.assertTrue(candidate.requires_gpqa)
+
+    def test_renderer_without_disabled_mm_cache_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "renderer workers require --mm-processor-cache-gb=0"):
+            sweep.validate_command_args(sweep.BASE_COMMAND_ARGS + ("--renderer-num-workers=2",))
 
     def test_prefix_off_has_no_positive_prefix_flag(self):
         candidate = sweep.select_candidates(["prefix-off"])[0]

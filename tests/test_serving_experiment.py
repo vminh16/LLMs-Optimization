@@ -7,6 +7,8 @@ import unittest
 from inference_opt.serving.experiment import (
     ExperimentCommandError,
     _execute_checked,
+    _parse_compose_ps,
+    _require_running_container,
     build_experiment_run,
     build_preflight_commands,
     prepare_run,
@@ -22,6 +24,31 @@ class ServingExperimentTest(unittest.TestCase):
 
         with self.assertRaisesRegex(ExperimentCommandError, "GPU probe.*stderr detail"):
             _execute_checked("GPU probe", ["docker", "run"], execute)
+
+    def test_parse_compose_ps_accepts_json_array(self):
+        rows = _parse_compose_ps('[{"Service":"model","State":"running","ID":"abc"}]')
+
+        self.assertEqual(rows[0]["State"], "running")
+
+    def test_parse_compose_ps_accepts_line_delimited_json(self):
+        rows = _parse_compose_ps('{"Service":"model","State":"running","ID":"abc"}\n')
+
+        self.assertEqual(rows[0]["ID"], "abc")
+
+    def test_startup_guard_rejects_exited_container_immediately(self):
+        command = ["docker", "compose", "ps", "--all", "--format", "json", "model"]
+
+        def execute(actual, **kwargs):
+            self.assertEqual(actual, command)
+            return CompletedProcess(
+                actual,
+                0,
+                stdout='[{"Service":"model","State":"exited","ExitCode":2,"ID":"abc"}]',
+                stderr="",
+            )
+
+        with self.assertRaisesRegex(ExperimentCommandError, "state=exited.*exit_code=2"):
+            _require_running_container(command, execute)
 
     def setUp(self):
         self.candidate = select_candidates(["renderer-2"])[0]
@@ -53,6 +80,19 @@ class ServingExperimentTest(unittest.TestCase):
 
             with self.assertRaisesRegex(FileExistsError, "already exists"):
                 prepare_run(run)
+
+    def test_manifest_records_control_and_accuracy_gate(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            compose, trace = self._inputs(root)
+            candidate = select_candidates(["prefix-off"])[0]
+            run = build_experiment_run(candidate, compose, trace, root / "results", 1)
+
+            prepare_run(run)
+            manifest = json.loads(run.manifest_path.read_text(encoding="utf-8"))
+
+            self.assertEqual(manifest["comparison_control"], "baseline")
+            self.assertTrue(manifest["requires_gpqa"])
 
     def test_resume_skips_only_completed_matching_run(self):
         with TemporaryDirectory() as tmp:
@@ -165,12 +205,38 @@ class ServingExperimentTest(unittest.TestCase):
                 return CompletedProcess(command, 0, stdout="diagnostic output", stderr="")
 
             with self.assertRaisesRegex(ExperimentCommandError, "model startup.*up failed"):
-                run_experiment(run, python_executable="python", execute=execute, skip_preflight=True)
+                run_experiment(
+                    run, python_executable="python", execute=execute, skip_preflight=True, startup_grace_s=0
+                )
 
             manifest = json.loads(run.manifest_path.read_text(encoding="utf-8"))
             self.assertEqual(manifest["status"], "failed")
             self.assertTrue(run.docker_log_path.exists())
             self.assertEqual(calls[-1][-1], "down")
+
+    def test_diagnostics_include_stopped_container_state_and_direct_logs(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            compose, trace = self._inputs(root)
+            run = build_experiment_run(self.candidate, compose, trace, root / "results", 1)
+            prepare_run(run)
+
+            def execute(command, **kwargs):
+                if command[-4:] == ["ps", "--all", "--quiet", "model"]:
+                    return CompletedProcess(command, 0, stdout="abc123\n", stderr="")
+                if command[:2] == ["docker", "inspect"]:
+                    return CompletedProcess(command, 0, stdout='[{"State":{"Status":"exited","ExitCode":2}}]', stderr="")
+                if command[:2] == ["docker", "logs"]:
+                    return CompletedProcess(command, 0, stdout="renderer validation failed", stderr="")
+                return CompletedProcess(command, 0, stdout="compose diagnostic", stderr="")
+
+            from inference_opt.serving.experiment import _capture_diagnostics
+
+            _capture_diagnostics(run, execute)
+            diagnostic = run.docker_log_path.read_text(encoding="utf-8")
+
+            self.assertIn("renderer validation failed", diagnostic)
+            self.assertIn('"ExitCode":2', diagnostic)
 
     def test_initial_cleanup_failure_stops_before_model_start(self):
         with TemporaryDirectory() as tmp:
@@ -187,7 +253,9 @@ class ServingExperimentTest(unittest.TestCase):
                 return CompletedProcess(command, 0, stdout="", stderr="")
 
             with self.assertRaisesRegex(ExperimentCommandError, "initial cleanup"):
-                run_experiment(run, python_executable="python", execute=execute, skip_preflight=True)
+                run_experiment(
+                    run, python_executable="python", execute=execute, skip_preflight=True, startup_grace_s=0
+                )
 
             self.assertFalse(any(command[-3:] == ["up", "-d", "model"] for command in calls))
 
@@ -199,6 +267,8 @@ class ServingExperimentTest(unittest.TestCase):
             prepare_run(run)
 
             def execute(command, **kwargs):
+                if command[-5:] == ["ps", "--all", "--format", "json", "model"]:
+                    return CompletedProcess(command, 0, stdout='[{"Service":"model","State":"running"}]', stderr="")
                 if "scripts/run_trace_benchmark.py" in command:
                     (run.output_dir / "summary.json").write_text(
                         json.dumps(
@@ -213,7 +283,9 @@ class ServingExperimentTest(unittest.TestCase):
                     )
                 return CompletedProcess(command, 0, stdout="", stderr="")
 
-            run_experiment(run, python_executable="python", execute=execute, skip_preflight=True)
+            run_experiment(
+                run, python_executable="python", execute=execute, skip_preflight=True, startup_grace_s=0
+            )
 
             manifest = json.loads(run.manifest_path.read_text(encoding="utf-8"))
             self.assertEqual(manifest["status"], "completed")
@@ -228,6 +300,8 @@ class ServingExperimentTest(unittest.TestCase):
 
             def execute(command, **kwargs):
                 nonlocal down_count
+                if command[-5:] == ["ps", "--all", "--format", "json", "model"]:
+                    return CompletedProcess(command, 0, stdout='[{"Service":"model","State":"running"}]', stderr="")
                 if command[-1] == "down":
                     down_count += 1
                     if down_count == 2:
@@ -247,7 +321,9 @@ class ServingExperimentTest(unittest.TestCase):
                 return CompletedProcess(command, 0, stdout="", stderr="")
 
             with self.assertRaisesRegex(ExperimentCommandError, "final cleanup.*cleanup failed"):
-                run_experiment(run, python_executable="python", execute=execute, skip_preflight=True)
+                run_experiment(
+                    run, python_executable="python", execute=execute, skip_preflight=True, startup_grace_s=0
+                )
 
             manifest = json.loads(run.manifest_path.read_text(encoding="utf-8"))
             self.assertEqual(manifest["status"], "failed")

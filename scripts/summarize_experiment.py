@@ -9,6 +9,7 @@ from inference_opt.benchmark.report import (
     summarize_candidate_groups,
     summarize_run_group,
 )
+from inference_opt.serving.sweep import build_experiment1_candidates
 
 
 def parse_args() -> argparse.Namespace:
@@ -39,20 +40,33 @@ def build_report(args: argparse.Namespace) -> dict:
         require_manifests=True,
     )
     comparisons = {}
+    specs = {candidate.name: candidate for candidate in build_experiment1_candidates()}
     if baseline["ready_for_comparison"]:
-        baseline_metrics = _medians(baseline)
         for name, candidate in candidates["groups"].items():
             if not candidate["ready_for_comparison"]:
                 comparisons[name] = {"decision": "blocked", "blocking_issues": candidate["blocking_issues"]}
                 continue
-            if candidate["identity"] != baseline["identity"]:
+            spec = specs.get(name)
+            control_name = spec.comparison_control if spec else "baseline"
+            control = baseline if control_name == "baseline" else candidates["groups"].get(control_name)
+            if control is None or not control["ready_for_comparison"]:
+                issues = [] if control is None else control["blocking_issues"]
                 comparisons[name] = {
                     "decision": "blocked",
-                    "blocking_issues": ["candidate trace or measurement version differs from baseline"],
+                    "comparison_control": control_name,
+                    "blocking_issues": [f"control {control_name} is not ready", *issues],
                 }
                 continue
-            comparison = compare_candidate_to_baseline(baseline_metrics, _medians(candidate))
-            if name == "prefix-off" and comparison["decision"] == "advance":
+            if candidate["identity"] != control["identity"]:
+                comparisons[name] = {
+                    "decision": "blocked",
+                    "comparison_control": control_name,
+                    "blocking_issues": ["candidate trace or measurement version differs from control"],
+                }
+                continue
+            comparison = compare_candidate_to_baseline(_medians(control), _medians(candidate))
+            comparison["comparison_control"] = control_name
+            if spec and spec.requires_gpqa and comparison["decision"] == "advance":
                 comparison["accuracy_status"] = "provisional_pending_gpqa"
             comparisons[name] = comparison
     return {"baseline": baseline, "candidates": candidates, "comparisons": comparisons}

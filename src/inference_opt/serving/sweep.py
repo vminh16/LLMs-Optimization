@@ -21,6 +21,8 @@ BASE_COMMAND_ARGS = (
 class SweepCandidate:
     name: str
     command_args: tuple[str, ...]
+    comparison_control: str = "baseline"
+    requires_gpqa: bool = False
 
 
 def build_baseline_candidates() -> list[SweepCandidate]:
@@ -40,12 +42,19 @@ def validate_command_args(command_args: tuple[str, ...]) -> None:
         keys.append(key)
     if "--enable-prefix-caching" in keys and "--no-enable-prefix-caching" in keys:
         raise ValueError("conflicting prefix caching flags")
+    values = {
+        arg.split(" #", 1)[0].split("=", 1)[0]: arg.split(" #", 1)[0].partition("=")[2]
+        for arg in command_args
+    }
+    renderer_workers = int(values.get("--renderer-num-workers", "1"))
+    mm_cache_gb = float(values.get("--mm-processor-cache-gb", "4"))
+    if renderer_workers > 1 and mm_cache_gb > 0:
+        raise ValueError("renderer workers require --mm-processor-cache-gb=0")
 
 
 def build_experiment1_candidates() -> list[SweepCandidate]:
     candidates = [
         SweepCandidate("language-only", BASE_COMMAND_ARGS + ("--language-model-only",)),
-        SweepCandidate("renderer-2", BASE_COMMAND_ARGS + ("--renderer-num-workers=2",)),
         SweepCandidate(
             "performance-interactivity",
             BASE_COMMAND_ARGS + ("--performance-mode=interactivity",),
@@ -54,7 +63,19 @@ def build_experiment1_candidates() -> list[SweepCandidate]:
             "performance-throughput",
             BASE_COMMAND_ARGS + ("--performance-mode=throughput",),
         ),
-        SweepCandidate("prefix-off", _replace_prefix_flag("--no-enable-prefix-caching")),
+        SweepCandidate(
+            "prefix-off",
+            _replace_prefix_flag("--no-enable-prefix-caching"),
+            requires_gpqa=True,
+        ),
+        SweepCandidate("disable-access-log", BASE_COMMAND_ARGS + ("--disable-uvicorn-access-log",)),
+        SweepCandidate("disable-log-stats", BASE_COMMAND_ARGS + ("--disable-log-stats",)),
+        SweepCandidate("mm-cache-off", BASE_COMMAND_ARGS + ("--mm-processor-cache-gb=0",)),
+        SweepCandidate(
+            "renderer-2",
+            BASE_COMMAND_ARGS + ("--mm-processor-cache-gb=0", "--renderer-num-workers=2"),
+            comparison_control="mm-cache-off",
+        ),
     ]
     for candidate in candidates:
         validate_command_args(candidate.command_args)

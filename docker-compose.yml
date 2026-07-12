@@ -14,6 +14,8 @@ services:
       - --gpu-memory-utilization=0.95
       - --tensor-parallel-size=1
       - --enable-prefix-caching
+      - --language-model-only
+      - --performance-mode=throughput
     ports:
       - "8000:8000"
     shm_size: "2g"

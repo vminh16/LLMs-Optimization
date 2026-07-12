@@ -8,6 +8,7 @@ from typing import Any, Callable
 import json
 import re
 import subprocess
+import time
 
 from inference_opt.serving.sweep import BASE_COMMAND_ARGS, SweepCandidate, build_run_commands, render_compose_override
 
@@ -28,6 +29,47 @@ def _execute_checked(stage: str, command: list[str], execute: Execute) -> subpro
     except subprocess.CalledProcessError as exc:
         detail = (exc.stderr or exc.stdout or str(exc)).strip()
         raise ExperimentCommandError(f"{stage} failed: {detail}") from exc
+
+
+def _parse_compose_ps(output: str) -> list[dict[str, Any]]:
+    text = output.strip()
+    if not text:
+        return []
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError:
+        return [json.loads(line) for line in text.splitlines() if line.strip()]
+    return payload if isinstance(payload, list) else [payload]
+
+
+def _require_running_container(command: list[str], execute: Execute) -> dict[str, Any]:
+    result = _execute_checked("container state check", command, execute)
+    rows = _parse_compose_ps(result.stdout)
+    if not rows:
+        raise ExperimentCommandError("model container is missing during startup")
+    model = next((row for row in rows if row.get("Service") == "model"), rows[0])
+    state = str(model.get("State", "unknown")).lower()
+    if state != "running":
+        exit_code = model.get("ExitCode", "unknown")
+        raise ExperimentCommandError(f"model container state={state}, exit_code={exit_code}")
+    return model
+
+
+def _monitor_startup(
+    run: "ExperimentRun",
+    execute: Execute,
+    *,
+    grace_s: float,
+    poll_interval_s: float,
+) -> None:
+    command = _compose_args(run) + ["ps", "--all", "--format", "json", "model"]
+    deadline = time.monotonic() + max(grace_s, 0.0)
+    while True:
+        _require_running_container(command, execute)
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return
+        time.sleep(min(max(poll_interval_s, 0.1), remaining))
 
 
 def _file_sha256(path: Path) -> str:
@@ -110,6 +152,8 @@ def _manifest(run: ExperimentRun, status: str, **extra: Any) -> dict[str, Any]:
         "candidate": run.candidate.name,
         "run_id": run.run_id,
         "command_args": list(run.candidate.command_args),
+        "comparison_control": run.candidate.comparison_control,
+        "requires_gpqa": run.candidate.requires_gpqa,
         "fingerprint": run.fingerprint,
         "image": run.image,
         "base_compose_sha256": run.base_compose_sha256,
@@ -245,12 +289,26 @@ def _cleanup(run: ExperimentRun, execute: Execute) -> str | None:
 def _capture_diagnostics(run: ExperimentRun, execute: Execute) -> None:
     compose = _compose_args(run)
     outputs = []
-    for command in (compose + ["ps"], compose + ["logs", "--no-color", "model"]):
+    for command in (
+        compose + ["ps", "--all"],
+        compose + ["logs", "--no-color", "model"],
+    ):
         try:
             result = execute(command, check=False, capture_output=True, text=True)
             outputs.append(f"$ {' '.join(command)}\n{result.stdout}\n{result.stderr}")
         except Exception as exc:
             outputs.append(f"$ {' '.join(command)}\n<diagnostic failed: {exc}>")
+    try:
+        id_command = compose + ["ps", "--all", "--quiet", "model"]
+        result = execute(id_command, check=False, capture_output=True, text=True)
+        outputs.append(f"$ {' '.join(id_command)}\n{result.stdout}\n{result.stderr}")
+        container_id = result.stdout.strip().splitlines()[0] if result.stdout.strip() else ""
+        if container_id:
+            for command in (["docker", "inspect", container_id], ["docker", "logs", container_id]):
+                result = execute(command, check=False, capture_output=True, text=True)
+                outputs.append(f"$ {' '.join(command)}\n{result.stdout}\n{result.stderr}")
+    except Exception as exc:
+        outputs.append(f"<direct container diagnostic failed: {exc}>")
     run.docker_log_path.write_text("\n".join(outputs), encoding="utf-8")
 
 
@@ -285,7 +343,7 @@ def run_experiment(
         output_root=run.output_dir.parent,
         run_id=run.run_id,
         python_executable=python_executable,
-        startup_grace_s=startup_grace_s,
+        startup_grace_s=0.0,
         poll_interval_s=poll_interval_s,
         total_timeout_s=total_timeout_s,
         stable_successes=stable_successes,
@@ -297,6 +355,12 @@ def run_experiment(
             run_preflight(run, execute=execute)
         _execute_checked("initial cleanup", commands[0], execute)
         _execute_checked("model startup", commands[1], execute)
+        _monitor_startup(
+            run,
+            execute,
+            grace_s=startup_grace_s,
+            poll_interval_s=poll_interval_s,
+        )
         _execute_checked("model readiness", commands[2], execute)
         _execute_checked("trace benchmark", commands[3], execute)
         _validate_summary(run)
